@@ -40,7 +40,11 @@ def get_q_bar(R, h, dt, h_bar_switch=1):
 
     q_bar = (dt * 2*L) / R_prime
     
-    return q_bar
+    q_trip = q_bar / (2 * r_f ** 2 * L)
+
+    t_clad = T_centerline - q_trip * r_f ** 2 / (4 * k_f)
+     
+    return q_bar, t_clad, q_trip
 
 def get_mass_flux_square(PD, N_elements):
     """Calculate coolant mass flux for a square lattice.
@@ -68,13 +72,16 @@ def get_mass_flux_triangle(PD, N_elements):
                m_dot (float): core mass flow rate.
     Returns: G_dot (float): coolant mass flux
     """
-    pitch_area = (1 / 4.0) * (PD * D) ** 2 * math.sqrt(3)
-    pin_area = math.pi * (r_f) ** 2.0
-    flow_area = (pitch_area - 0.5 * pin_area) * N_elements
-    flow_perim = math.pi * D * N_elements
+    r_f_c = r_f + c
+    diam = r_f_c * 2
+    pitch = PD * diam
+    A_channel = (pitch ** 2 * math.sqrt(3) - math.pi * 2 * r_f_c ** 2) / 4
+    flow_area = A_channel * N_elements * 2
+    flow_perim = math.pi * diam * N_elements
     G_dot = m_dot / flow_area
     D_e = 4 * flow_area / flow_perim
     v = G_dot / rho_cool
+    
     return G_dot, D_e, v
 
 def get_h_bar(G_dot, D_e):
@@ -112,34 +119,36 @@ def run_iter(PD, diam=D):
     
     dt = T_centerline - T_bulk
     # get first estimate for q_bar
-    q_bar = get_q_bar(r_f, 1.0, dt, 0)
+    q_bar, t_clad, q_trip = get_q_bar(r_f, 1.0, dt, 0)
     N_pins = math.ceil(Q_therm / q_bar)
     G_dot, D_e, v = get_mass_flux_triangle(PD, N_pins)
     h_bar, Re = get_h_bar(G_dot, D_e)
 
-    q_bar_new = get_q_bar(r_f, h_bar, dt, 1)
+    q_bar_new = get_q_bar(r_f, h_bar, dt, 1)[0]
     N_pins_new = math.ceil(Q_therm / q_bar_new)
     dP = calc_dp(D_e, v, Re)
     while N_pins != N_pins_new:
         N_pins = copy.deepcopy(N_pins_new)
-        q_bar = get_q_bar(r_f, h_bar, dt, 1)
+        q_bar, t_clad, q_trip = get_q_bar(r_f, h_bar, dt, 1)
         N_pins_new = math.ceil(Q_therm / q_bar)
         G_dot, D_e, v = get_mass_flux_triangle(PD, N_pins)
         h_bar, Re = get_h_bar(G_dot, D_e)
-
-    return [N_pins, h_bar, Re, dP, q_bar]
+    
+    return [N_pins, h_bar, Re, dP, q_bar, t_clad, q_trip]
 
 if __name__ == '__main__':
     data = {'N_pins' : [],
             'h_bar' : [],
             'Re' : [],
             'dP' : [],
-            'q_bar' : []}
+            'q_bar' : [],
+            't_clad' : [],
+            'q_trip' : []}
 
     PDs = np.linspace(1.1, 1.5, 25)
     for PD_ratio in PDs:
         results = run_iter(PD_ratio)
         for idx, type in enumerate(data.keys()):
             data[type].append(results[idx])
-    plt.plot(PDs, data['dP'])
+    plt.plot(PDs, data['q_bar'])
     plt.show()
