@@ -4,34 +4,30 @@ import physical_constants as pc
 import numpy as np
 
 def Iterate(r, PD, c, L, x, save_objects=[]):
-    flow_sweep_iteration = FlowIteration(r, PD, c, L, 1)
     dp_check = False
-    
-    while dp_check == False:
+    check_converge = False
+    guess = 1
+    while check_converge == False:
+        flow_sweep_iteration = FlowIteration(r, PD, c, L, guess)
+        
         # perform necessary physics calculations
         flow_sweep_iteration.mass_flux_channel()
         flow_sweep_iteration.calc_nondim()
         flow_sweep_iteration.get_h_bar()
-        flow_sweep_iteration.get_q_bar()
-        flow_sweep_iteration.calc_N_pins(161)
+        flow_sweep_iteration.get_q_bar(1)
+        flow_sweep_iteration.calc_N_channels(pc.Q_therm)
         flow_sweep_iteration.calc_dp()
-        # check pressure constraints
-        if flow_sweep_iteration.dp < 400000:
-            dp_check = True
-        else:
-            flow_sweep_iteration.guess += 1
+        print(flow_sweep_iteration.dp)
+        # check N_channels for convergence
+        check_converge = flow_sweep_iteration.check_converge()
+        if check_converge == False:
+            guess = flow_sweep_iteration.N_channels
 
     for item in save_objects:
         item.store_data(x, flow_sweep_iteration)  
 
-pressure = StoreIteration("Pressure", 'dp', ('radius','dp'))
-N_pins   = StoreIteration("npins", 'N_pins', ('radius','N_pins'))
-h_bar    = StoreIteration("hbar", 'h_bar', ('radius','h_bar'))
-save = [pressure, N_pins, h_bar]
-radii = np.arange(0.001, 0.003, 0.000001)
+    return flow_sweep_iteration
 
-for radius in radii:
-    Iterate(radius, 2, 0.00031, 0.5, radius, save)
+test = Iterate(0.01, 2, 0.0006, 0.5, 1)
 
-for item in save:
-    item.plot(show=True)
+print(test.__dict__)
