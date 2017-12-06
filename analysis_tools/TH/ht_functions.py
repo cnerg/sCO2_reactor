@@ -55,7 +55,7 @@ class FlowIteration:
     def calc_nondim(self):
         """ Calculate Reynolds number
         """
-        self.Re = rho_cool * self.v * self.L / mu
+        self.Re = rho_cool * self.v * self.D_e / mu
         self.Pr = Cp_cool * mu / k_cool
         # nusselt correlation is Eq (9-22) from El-Wakil Nuclear Heat Transport
         self.Nu = 0.023*math.pow(self.Re,0.8)*math.pow(self.Pr, 0.4)
