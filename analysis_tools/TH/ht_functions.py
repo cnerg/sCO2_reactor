@@ -1,18 +1,23 @@
 import math
 from physical_constants import *
+import matplotlib.pyplot as plt
+
 
 class FlowIteration:
     
-    def __init__(self, flow_radius, PD, c, L):
+    def __init__(self, flow_radius, PD, c, L, guess_pins):
         self.r_channel = flow_radius
         self.PD = PD
         self.c = c
         self.L = L 
+        self.guess = guess_pins
         
         # constants used internally
         self.dt = T_centerline - T_bulk
         self.h_bar = 1 # 1 to avoid div by zero error
         self.Re = 0
+        self.Nu = 0
+        self.Pr = 0
         self.G_dot = 0
         self.D_e = 0
         self.v = 0
@@ -20,38 +25,40 @@ class FlowIteration:
         self.N_pins = 1
         self.dp = 0
 
-    def get_h_bar(self):
-        """Calculate average heat transfer coefficient.
-        Arguments: 
-        Returns: h_bar (float) average heat transfer coefficient.
-        """
-        
-        self.Re = self.D_e * self.G_dot/ nu
-        Pr = Cp_cool * nu / k_cool
-        
-        # equation is combination of 9-30, 9-31b in El-Wakil's Nuclear Heat
-        # Transport. Valid for 1.1 <= PD <= 1.3
-        Nu = (0.026 * self.PD - 0.006) * math.pow(self.Re, 0.8) * math.pow(Pr, 0.333)
-        h = Nu * k_cool / self.D_e
-        
-        self.h_bar = h
-        
+    def check_converge(self):
+        if self.N_pins == self.guess:
+            return True
+        else:
+            return False
+    
     def mass_flux_channel(self):
         """Calculate coolant mass flux through 1 CERMET flow channel.
         Arguments: flow_radius (float) flow channel radius
                    self.N_pins (int) number of fuel elements
         Returns: G_dot (float): coolant mass flux
         """
-        flow_area = math.pi * self.r_channel * self.r_channel * self.N_pins 
-        flow_perim = math.pi * self.r_channel * 2.0 * self.N_pins
-        G_dot = m_dot / flow_area
-        D_e = 4.0 * flow_area / flow_perim
-        v = G_dot / rho_cool
-        
-        self.G_dot = G_dot
-        self.D_e = D_e
-        self.v = v
+        flow_area = math.pi * self.r_channel * self.r_channel * self.guess 
+        flow_perim = math.pi * self.r_channel * 2.0 * self.guess
+        self.G_dot = m_dot / flow_area
+        self.D_e = 4.0 * flow_area / flow_perim
+        self.v = self.G_dot / rho_cool
+
+    def calc_nondim(self):
+        """ Calculate Reynolds number
+        """
+        self.Re = rho_cool * self.v * self.L / nu
+        self.Pr = Cp_cool * nu / k_cool
+        # nusselt correlation is Eq (9-22) from El-Wakil Nuclear Heat Transport
+        self.Nu = 0.023*math.pow(self.Re,0.8)*math.pow(self.Pr, 0.4)
     
+    def get_h_bar(self):
+        """Calculate average heat transfer coefficient.
+        Arguments: 
+        Returns: h_bar (float) average heat transfer coefficient.
+        """
+        
+        self.h_bar = self.Nu * k_cool / self.D_e
+        
     def get_q_bar(self, h_bar_switch=0):
         """Calculate heat transfer from fuel element.
         """
@@ -64,31 +71,20 @@ class FlowIteration:
                 (r_o*r_o*R_tot)
         self.q_bar = q_bar
 
-
-    def constrain_dp(self, allowed_dp):
-        """Calculate pressure drop subchannel
-        Arguments: D_e (float) [m] hydraulic diameter
-                   v   (float) [m/s] bulk flow velocity
-        Returns:
-                   dp (float) [Pa] core pressure drop
-        """
-        # friction factor correlation (Todreas & Kazimi eq. 9109b)
-        constant = 0.1458 + 0.03632 * (self.PD - 1) - 0.03333 * (self.PD -1) ** 2
-        f_s = constant / math.pow(self.Re, 0.18)
-
-        v = f_s * self.L * rho_cool ** 2 / (self.D_e * 2 * allowed_dp)
-        
-        req_G_dot = v * rho_cool
-        req_flow_area = m_dot / req_G_dot 
-        channel_area = math.pi * self.r_channel * self.r_channel
-        self.N_pins = req_flow_area / channel_area
-        
     def calc_N_pins(self, Q_therm):
         """Calculate required number of pins based on reactor thermal power and
         q_bar
         """
 
         self.N_pins = math.ceil(Q_therm / self.q_bar)
+
+    def calc_dp(self):
+        """Calculate pressure drop subchannel
+        """
+        # El Wakil (9-4)
+        f = 0.184 / math.pow(self.Re, 0.2)
+        # Darcy pressure drop (El-Wakil 9-3)
+        self.dp = f * self.L * rho_cool * self.v * self.v / (2*self.D_e)
 
 class StoreIteration:
     """Options for Datatype are:
@@ -116,9 +112,12 @@ class StoreIteration:
         self.data['x'].append(x)
         self.data['y'].append(iteration.__dict__[self.datatype])
 
-    def plot(self):
-        plt.plot(self.data['x'], self.data['y'], label=self.dep_variable)
+    def plot(self, show=False):
+        plt.plot(self.data['x'], self.data['y'])
         plt.xlabel(self.data['labels'][0])
         plt.ylabel(self.data['labels'][1])
         plt.title(self.data['name'])
-        plt.savefig(self.plotname + '.png', dpi=500)
+        plt.savefig(self.data['name'] + '.png', dpi=500)
+        
+        if show == True:
+            plt.show()
