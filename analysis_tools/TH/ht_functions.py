@@ -31,6 +31,8 @@ class FlowIteration:
         self.D_e = 0
         self.v = 0
         self.q_bar = 0
+        self.q_per_channel = 0
+        self.q_therm_check = 0
         self.N_channels = 0
         self.dp = 0
 
@@ -46,7 +48,7 @@ class FlowIteration:
                    self.N_channels (int) number of fuel elements
         Returns: G_dot (float): coolant mass flux
         """
-        flow_area = math.pi *(self.r_channel-self.c)**2 * self.guess 
+        flow_area = math.pi *self.r_channel**2 * self.guess 
         flow_perim = math.pi * self.r_channel * 2.0 * self.guess
         self.G_dot = m_dot / flow_area
         self.D_e = 4.0 * flow_area / flow_perim
@@ -67,27 +69,34 @@ class FlowIteration:
         """
         
         self.h_bar = self.Nu * k_cool / self.D_e
-        
+
     def get_q_bar(self, h_bar_switch=0):
         """Calculate heat transfer from fuel element.
         """
         r_o = self.PD*self.r_channel*2 / math.sqrt(3)
-        R_tot = (1/k_f) + (self.PD*self.PD - 2*math.log(self.PD) - 1) +\
-                (self.PD*self.PD - 1)*((1/k_c) * math.log( (r_o + self.c) / r_o  +\
-                h_bar_switch / (self.h_bar*(r_o + self.c) )))
-        
-        self.q_bar = 4 * self.dt * (r_o - self.r_channel)*(r_o - self.r_channel) * self.L /\
-                (r_o*r_o*R_tot)
+        r_i = self.r_channel
 
+        R_cond_fuel = (1/ (4*k_f))*((r_i/r_o)**2 - 2*math.log(r_i/r_o) -1)
+        R_cond_clad = 0.5*(1-(r_i/r_o)**2)*((1/k_c)*math.log(r_i / (r_i -\
+            self.c)))
+        R_conv = 0.5*(1-(r_i/r_o)**2)*(1/(self.h_bar*(r_i - self.c)))
+
+        R_tot = R_cond_fuel + R_cond_clad + R_conv
+
+        self.q_bar = 8*self.dt*(-r_o + r_i + c)**2 * self.L /\
+               ((R_cond_fuel + 2*R_cond_clad + 2*R_conv)*r_o*r_o -\
+               2*r_i*r_i*(R_cond_clad + R_conv))
+        
     def calc_N_channels(self, Q_therm):
         """Calculate required number of pins based on reactor thermal power and
         q_bar
         """
-        pitch = self.r_channel * self.PD / 2.0
-        Vol_fuel = 2*math.sqrt(3)*self.r_channel*self.r_channel * self.L
-        Vol_fuel -= self.r_channel*self.r_channel * math.pi * self.L
-        q_per_channel = self.q_bar * Vol_fuel
-        self.N_channels = math.ceil(Q_therm / q_per_channel)
+        pitch = self.r_channel * self.PD
+        Vol_fuel = math.sqrt(3)*pitch*pitch* self.L / 2
+        Vol_fuel -= (self.r_channel+self.c)**2 * math.pi * self.L
+        print(Vol_fuel)
+        self.q_per_channel = self.q_bar * Vol_fuel
+        self.N_channels = math.ceil(Q_therm / self.q_per_channel)
 
     def calc_dp(self):
         """Calculate pressure drop subchannel
@@ -96,6 +105,11 @@ class FlowIteration:
         f = 0.184 / math.pow(self.Re, 0.2)
         # Darcy pressure drop (El-Wakil 9-3)
         self.dp = f * self.L * rho_cool * self.v * self.v / (2*self.D_e)
+    
+    def Q_Therm_Check(self):
+
+        self.q_therm_check = self.N_channels * self.q_per_channel
+        return self.q_therm_check
 
 class StoreIteration:
     """ Save Data For Analysis:
