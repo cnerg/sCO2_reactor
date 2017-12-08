@@ -15,6 +15,16 @@ class FlowIteration:
         guess (int): an initial guess for the required number of flow channels 
 
     """
+    # geometric attributes
+    r_channel = 0; PD = 0; c = 0; L = 0
+    guess = 0; N_channels = 0
+    dt = T_centerline - T_bulk
+    # heat transfer and non-dimensional coefficients
+    h_bar = 0; Re = 0; Nu = 0; Pr = 0
+    # flow parameters
+    G_dot = 0; D_e = 0; v = 0; dp = 0
+    # heat generation
+    q_bar = 0; q_per_channel = 0; q_therm_check = 0
     
     def __init__(self, flow_radius, PD, c, L, guess):
         self.r_channel = flow_radius
@@ -22,21 +32,11 @@ class FlowIteration:
         self.c = c
         self.L = L
         self.guess = guess
-        self.dt = T_centerline - T_bulk
-        self.h_bar = 1 # 1 to avoid div by zero error
-        self.Re = 0
-        self.Nu = 0
-        self.Pr = 0
-        self.G_dot = 0
-        self.D_e = 0
-        self.v = 0
-        self.q_bar = 0
-        self.q_per_channel = 0
-        self.q_therm_check = 0
-        self.N_channels = 0
-        self.dp = 0
 
     def check_converge(self):
+        """Test for solution convergence
+        """
+        
         if self.N_channels == self.guess:
             return True
         else:
@@ -73,9 +73,12 @@ class FlowIteration:
     def get_q_bar(self, h_bar_switch=0):
         """Calculate heat transfer from fuel element.
         """
+        # Assume r_o that conscribes the hexagon and thus is limiting case for
+        # heat transfer.
         r_o = self.PD*self.r_channel*2 / math.sqrt(3)
         r_i = self.r_channel
-
+        # Equation for flow through cylindrical element + generation provided in
+        # El Wakil Nuclear Heat Transport (Eq. 5-62)
         R_cond_fuel = (1/ (4*k_f))*((r_i/r_o)**2 - 2*math.log(r_i/r_o) -1)
         R_cond_clad = 0.5*(1-(r_i/r_o)**2)*((1/k_c)*math.log(r_i / (r_i -\
             self.c)))
@@ -91,10 +94,11 @@ class FlowIteration:
         """Calculate required number of pins based on reactor thermal power and
         q_bar
         """
+        # combine actual fuel volume with conservative q-bar to estimate
+        # generation per pin.
         pitch = self.r_channel * self.PD
         Vol_fuel = math.sqrt(3)*pitch*pitch* self.L / 2
         Vol_fuel -= (self.r_channel+self.c)**2 * math.pi * self.L
-        print(Vol_fuel)
         self.q_per_channel = self.q_bar * Vol_fuel
         self.N_channels = math.ceil(Q_therm / self.q_per_channel)
 
@@ -107,7 +111,9 @@ class FlowIteration:
         self.dp = f * self.L * rho_cool * self.v * self.v / (2*self.D_e)
     
     def Q_Therm_Check(self):
-
+        """Check estimated thermal power (from flow calculations) against
+        desired thermal power.
+        """
         self.q_therm_check = self.N_channels * self.q_per_channel
         return self.q_therm_check
 
