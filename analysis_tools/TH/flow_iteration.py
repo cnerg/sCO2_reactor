@@ -3,30 +3,14 @@ import matplotlib.pyplot as plt
 import physical_constants as pc
 import numpy as np
 
-def Iterate(r, PD, c, L, guess):
-    iteration = FlowIteration(r, PD, c, L, guess)        
-    # perform necessary physics calculations
-    iteration.mass_flux_channel()
-    iteration.calc_nondim()
-    iteration.get_h_bar()
-    iteration.get_q_bar(1)
-    iteration.calc_N_channels(pc.Q_therm)
-    iteration.calc_dp()
-    
-    if iteration.check_converge() == False:
-        iteration =\
-        Iterate(r, PD, c, L, iteration.N_channels)
-
-    return iteration
 
 
-test = Iterate(0.002, 100, 0.00031, 0.5, 100)
+test = FlowIteration(0.002, 100, 0.00031, 0.5, 100)
+test.Iterate()
 print(test.__dict__)
 
 
 """
-
-
 q_bar1 = []
 q_bar2 = []
 q_bar3 = []

@@ -115,7 +115,26 @@ class FlowIteration:
         desired thermal power.
         """
         self.q_therm_check = self.N_channels * self.q_per_channel
+       
         return self.q_therm_check
+
+    def Iterate(self):
+        """Perform Flow Calc Iteration
+        """
+        iteration = FlowIteration(self.r_channel, self.PD, self.c, self.L, self.guess)        
+        # perform necessary physics calculations
+        iteration.mass_flux_channel()
+        iteration.calc_nondim()
+        iteration.get_h_bar()
+        iteration.get_q_bar(1)
+        iteration.calc_N_channels(Q_therm)
+        iteration.calc_dp()
+        
+        if iteration.check_converge() == False:
+            iteration =\
+            Iterate(self.r_channel, self.PD, self.c, self.L, iteration.N_channels)
+
+        return iteration
 
 class StoreIteration:
     """ Save Data For Analysis:
