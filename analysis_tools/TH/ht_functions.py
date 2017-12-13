@@ -2,18 +2,17 @@ import math
 from physical_constants import *
 import matplotlib.pyplot as plt
 
-
 class FlowIteration:
     """ Perform 1D Flow Analysis
 
     This class contains the required methods to perform a 1D coupled heat
     transfer/fluid flow problem on a CERMET Flow Channel. Upon instantiation,
     the user provides:
-        flow_radius (float): radius of the coolant flow channels
-        PD (float): fuel cell pitch / coolant channel diameter
-        c (float): channel cladding thickness
-        guess (int): an initial guess for the required number of flow channels 
-
+        flow_radius (float): radius of the coolant flow channels [m]
+        PD (float): fuel cell pitch / coolant channel diameter [-]
+        c (float): channel cladding thickness [m]
+        L (float): fuel length [m]
+        guess (int): initial number of flow channels [-]
     """
     # geometric attributes
     r_channel = 0; PD = 0; c = 0; L = 0
@@ -32,6 +31,7 @@ class FlowIteration:
         self.c = c
         self.L = L
         self.guess = guess
+        self.iterations = 0
 
     def check_converge(self):
         """Test for solution convergence
@@ -96,7 +96,7 @@ class FlowIteration:
         """
         # combine actual fuel volume with conservative q-bar to estimate
         # generation per pin.
-        pitch = self.r_channel * self.PD
+        pitch = 2 * self.r_channel * self.PD
         Vol_fuel = math.sqrt(3)*pitch*pitch* self.L / 2
         Vol_fuel -= (self.r_channel+self.c)**2 * math.pi * self.L
         self.q_per_channel = self.q_bar * Vol_fuel
@@ -110,7 +110,7 @@ class FlowIteration:
         # Darcy pressure drop (El-Wakil 9-3)
         self.dp = f * self.L * rho_cool * self.v * self.v / (2*self.D_e)
     
-    def Q_Therm_Check(self):
+    def Q_therm_check(self):
         """Check estimated thermal power (from flow calculations) against
         desired thermal power.
         """
@@ -121,20 +121,21 @@ class FlowIteration:
     def Iterate(self):
         """Perform Flow Calc Iteration
         """
-        iteration = FlowIteration(self.r_channel, self.PD, self.c, self.L, self.guess)        
+        self.iterations += 1
         # perform necessary physics calculations
-        iteration.mass_flux_channel()
-        iteration.calc_nondim()
-        iteration.get_h_bar()
-        iteration.get_q_bar(1)
-        iteration.calc_N_channels(Q_therm)
-        iteration.calc_dp()
-        
-        if iteration.check_converge() == False:
-            iteration =\
-            Iterate(self.r_channel, self.PD, self.c, self.L, iteration.N_channels)
+        self.mass_flux_channel()
+        self.calc_nondim()
+        self.get_h_bar()
+        self.get_q_bar(1)
+        self.calc_N_channels(Q_therm)
+        self.calc_dp()
+        # print some info for debugging
+        if self.iterations < 10:
+            print(self.Q_therm_check())
 
-        return iteration
+        if self.check_converge() == False:
+            self.guess = self.N_channels
+            self.Iterate()
 
 class StoreIteration:
     """ Save Data For Analysis:
