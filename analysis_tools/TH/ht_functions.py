@@ -25,9 +25,9 @@ class FlowIteration:
     # heat generation
     q_bar = 0; q_per_channel = 0; q_therm_check = 0
     
-    def __init__(self, flow_radius, PD, c, L, guess):
+    def __init__(self, flow_radius, pitch, c, L, guess):
         self.r_channel = flow_radius
-        self.PD = PD
+        self.pitch = pitch
         self.c = c
         self.L = L
         self.guess = guess
@@ -75,7 +75,7 @@ class FlowIteration:
         """
         # Assume r_o that conscribes the hexagon and thus is limiting case for
         # heat transfer.
-        r_o = self.PD*self.r_channel*2 / math.sqrt(3)
+        r_o = self.pitch / math.sqrt(3)
         r_i = self.r_channel
         # Equation for flow through cylindrical element + generation provided in
         # El Wakil Nuclear Heat Transport (Eq. 5-62)
@@ -96,8 +96,7 @@ class FlowIteration:
         """
         # combine actual fuel volume with conservative q-bar to estimate
         # generation per pin.
-        pitch = 2 * self.r_channel * self.PD
-        Vol_fuel = math.sqrt(3)*pitch*pitch* self.L / 2
+        Vol_fuel = math.sqrt(3)*self.pitch**2 * self.L / 2
         Vol_fuel -= (self.r_channel+self.c)**2 * math.pi * self.L
         self.q_per_channel = self.q_bar * Vol_fuel
         self.N_channels = math.ceil(Q_therm / self.q_per_channel)
