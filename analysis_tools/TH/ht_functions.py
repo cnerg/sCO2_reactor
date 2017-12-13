@@ -70,7 +70,7 @@ class FlowIteration:
         
         self.h_bar = self.Nu * k_cool / self.D_e
 
-    def get_q_bar(self, h_bar_switch=0):
+    def get_q_bar(self):
         """Calculate heat transfer from fuel element.
         """
         # Assume r_o that conscribes the hexagon and thus is limiting case for
@@ -86,7 +86,7 @@ class FlowIteration:
 
         R_tot = R_cond_fuel + R_cond_clad + R_conv
 
-        self.q_bar = 8*self.dt*(-r_o + r_i + c)**2 * self.L /\
+        self.q_bar = 8*self.dt*(-r_o + r_i + self.c)**2 * self.L /\
                ((R_cond_fuel + 2*R_cond_clad + 2*R_conv)*r_o*r_o -\
                2*r_i*r_i*(R_cond_clad + R_conv))
         
@@ -121,21 +121,15 @@ class FlowIteration:
     def Iterate(self):
         """Perform Flow Calc Iteration
         """
-        self.iterations += 1
-        # perform necessary physics calculations
-        self.mass_flux_channel()
-        self.calc_nondim()
-        self.get_h_bar()
-        self.get_q_bar(1)
-        self.calc_N_channels(Q_therm)
-        self.calc_dp()
-        # print some info for debugging
-        if self.iterations < 10:
-            print(self.Q_therm_check())
-
-        if self.check_converge() == False:
+        while self.check_converge() == False:
+            # perform necessary physics calculations
+            self.mass_flux_channel()
+            self.calc_nondim()
+            self.get_h_bar()
+            self.get_q_bar()
+            self.calc_N_channels(Q_therm)
+            self.calc_dp()
             self.guess = self.N_channels
-            self.Iterate()
 
 class StoreIteration:
     """ Save Data For Analysis:

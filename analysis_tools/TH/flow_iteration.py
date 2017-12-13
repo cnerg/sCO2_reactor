@@ -10,7 +10,8 @@ c = 0.00031
 def oneD_flow_modeling(radius, PD, guess):
     test = FlowIteration(radius, PD, c, L, guess)
     test.Iterate()
-    print(test.__dict__)
+    data = test.__dict__
+    print([(key, data[key]) for key in sorted(data.keys())])
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
