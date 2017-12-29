@@ -79,16 +79,12 @@ class FlowIteration:
         r_i = self.r_channel
         # Equation for flow through cylindrical element + generation provided in
         # El Wakil Nuclear Heat Transport (Eq. 5-62)
-        R_cond_fuel = (1/ (4*k_f))*((r_i/r_o)**2 - 2*math.log(r_i/r_o) -1)
-        R_cond_clad = 0.5*(1-(r_i/r_o)**2)*((1/k_c)*math.log(r_i / (r_i -\
-            self.c)))
-        R_conv = 0.5*(1-(r_i/r_o)**2)*(1/(self.h_bar*(r_i - self.c)))
-
-        R_tot = R_cond_fuel + R_cond_clad + R_conv
-
-        self.q_bar = 8*self.dt*(-r_o + r_i + self.c)**2 * self.L /\
-               ((R_cond_fuel + 2*R_cond_clad + 2*R_conv)*r_o*r_o -\
-               2*r_i*r_i*(R_cond_clad + R_conv))
+        R_fuel = (r_i/r_o)**2 - 2*math.log(r_i/r_o) - 1
+        R_clad = (1/k_c)*math.log(r_i / (r_i - self.c))
+        R_conv = 1 / (self.h_bar*(r_i - self.c))
+        self.q_bar = 8*self.dt*(-r_o + r_i + self.c)**2 * self.L * k_f /\
+               (-2*(r_i - r_o)*(r_i + r_o)*(R_clad + R_conv)*k_f + r_o**2 *\
+                       R_fuel)
         
     def calc_N_channels(self, Q_therm):
         """Calculate required number of pins based on reactor thermal power and
@@ -120,15 +116,18 @@ class FlowIteration:
     def Iterate(self):
         """Perform Flow Calc Iteration
         """
-        while self.check_converge() == False:
+        converge = False
+#        while converge == False:
             # perform necessary physics calculations
-            self.mass_flux_channel()
-            self.calc_nondim()
-            self.get_h_bar()
-            self.get_q_bar()
-            self.calc_N_channels(Q_therm)
-            self.calc_dp()
-            self.guess = self.N_channels
+        self.mass_flux_channel()
+        self.calc_nondim()
+        self.get_h_bar()
+        self.get_q_bar()
+        self.calc_N_channels(Q_therm)
+        self.calc_dp()
+        converge = self.check_converge()
+        self.guess = self.N_channels
+        self.iterations += 1
 
 class StoreIteration:
     """ Save Data For Analysis:
