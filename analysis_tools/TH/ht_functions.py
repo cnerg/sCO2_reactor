@@ -34,11 +34,14 @@ class FlowIteration:
         self.iterations = 0
 
     def check_converge(self):
-        """Test for solution convergence
+        """Test for solution convergence and pressure limit.
         """
-        
         if self.N_channels == self.guess:
-            return True
+            if self.dp < dp_allowed:
+                return True
+            else:
+                self.N_channels += 1
+                return False
         else:
             return False
     
@@ -73,19 +76,9 @@ class FlowIteration:
     def get_q_bar(self):
         """Calculate heat transfer from fuel element.
         """
-        # Assume r_o that conscribes the hexagon and thus is limiting case for
-        # heat transfer.
-        r_o = self.pitch / math.sqrt(3)
-        r_i = self.r_channel
-        # Equation for flow through cylindrical element + generation provided in
-        # El Wakil Nuclear Heat Transport (Eq. 5-62)
-        R_fuel = (r_i/r_o)**2 - 2*math.log(r_i/r_o) - 1
-        R_clad = (1/k_c)*math.log(r_i / (r_i - self.c))
-        R_conv = 1 / (self.h_bar*(r_i - self.c))
-        self.q_bar = 8*self.dt*(-r_o + r_i + self.c)**2 * self.L * k_f /\
-               (-2*(r_i - r_o)*(r_i + r_o)*(R_clad + R_conv)*k_f + r_o**2 *\
-                       R_fuel)
-        
+        R = 1 / (4*k_fuel) + (1 / (2*(self.r_channel - self.c)) )
+        self.q_bar = self.dt*2*self.L / R
+
     def calc_N_channels(self, Q_therm):
         """Calculate required number of pins based on reactor thermal power and
         q_bar
@@ -105,29 +98,21 @@ class FlowIteration:
         # Darcy pressure drop (El-Wakil 9-3)
         self.dp = f * self.L * rho_cool * self.v * self.v / (2*self.D_e)
     
-    def Q_therm_check(self):
-        """Check estimated thermal power (from flow calculations) against
-        desired thermal power.
-        """
-        self.q_therm_check = self.N_channels * self.q_per_channel
-       
-        return self.q_therm_check
-
     def Iterate(self):
         """Perform Flow Calc Iteration
         """
         converge = False
-#        while converge == False:
+        while converge == False:
             # perform necessary physics calculations
-        self.mass_flux_channel()
-        self.calc_nondim()
-        self.get_h_bar()
-        self.get_q_bar()
-        self.calc_N_channels(Q_therm)
-        self.calc_dp()
-        converge = self.check_converge()
-        self.guess = self.N_channels
-        self.iterations += 1
+            self.mass_flux_channel()
+            self.calc_nondim()
+            self.get_h_bar()
+            self.get_q_bar()
+            self.calc_N_channels(Q_therm)
+            self.calc_dp()
+            converge = self.check_converge()
+            self.guess = self.N_channels
+            self.iterations += 1
 
 class StoreIteration:
     """ Save Data For Analysis:
