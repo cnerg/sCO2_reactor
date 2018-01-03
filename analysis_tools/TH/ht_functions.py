@@ -27,9 +27,9 @@ class FlowIteration:
     # heat generation
     q_bar = 0; q_per_channel = 0; q_therm_check = 0
     
-    def __init__(self, flow_radius, pitch, c, L, guess):
-        self.r_channel = flow_radius
-        self.pitch = pitch
+    def __init__(self, diameter, PD, c, L, guess):
+        self.r_channel = diameter / 2.0
+        self.pitch = self.r_channel * PD * 2
         self.c = c
         self.L = L
         self.guess = guess
@@ -93,7 +93,7 @@ class FlowIteration:
         q_trip_max = self.dt / (R_fuel + R_clad + R_conv)
         
         # consider axial flux variation
-        A_fuel = math.sqrt(3)*self.pitch**2 / 2
+        A_fuel = math.sqrt(3)*self.pitch**2 / 2.0
         A_cool = (self.r_channel + self.c)**2 * math.pi
         A_fuel -= A_cool
 

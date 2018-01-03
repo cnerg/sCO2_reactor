@@ -12,7 +12,7 @@ def fuel_cond(T):
     kc = 1.841e-19*math.pow(T,6) - 2.097e-15*math.pow(T,5) +\
     9.721e-12*math.pow(T,4) - 2.369e-8*math.pow(T,3) +\
     3.283e-5*math.pow(T,2) - 0.0267*T + 63.18
-
+    
     return kc
 
 m_dot = 0.75 # coolant flow [kg/s]

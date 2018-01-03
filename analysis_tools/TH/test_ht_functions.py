@@ -18,7 +18,7 @@ def test_mass_flux():
     """Test mass flux function.
     """
     test = FlowIteration(1, 2, 0.00031, 1, 1)
-    exp_G = m_dot / math.pi
+    exp_G = m_dot / (math.pi * 0.5**2)
     exp_De = 2*test.r_channel
     exp_v = exp_G / rho_cool
 
