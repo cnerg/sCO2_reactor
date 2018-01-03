@@ -73,21 +73,32 @@ class FlowIteration:
         
         self.h_bar = self.Nu * k_cool / self.D_e
 
-    def get_q_bar(self):
-        """Calculate heat transfer from fuel element.
+    def get_q_bar(self, Q_therm):
+        """Calculate heat transfer from fuel element. Convert q_bar max from
+        cylindrical geometry to hexagonal geometry. Calculate number of required
+        flow channels.
         """
-        R = 1 / (4*k_fuel) + (1 / (2*(self.r_channel - self.c)) )
-        self.q_bar = self.dt*2*self.L / R
-
-    def calc_N_channels(self, Q_therm):
-        """Calculate required number of pins based on reactor thermal power and
-        q_bar
-        """
+        r_i = self.r_channel + self.c
+        r_o = self.pitch
+        # this approximation does not consider axial flux variation!!!!
+        
+        R_fuel = (r_o**2 / (4*k_fuel)) * ((r_i/r_o)**2 - 2*math.log(r_i/r_o) - 1)
+        R_clad = (r_o/2)**2 *\
+        (1-(r_i/r_o)**2)*(math.log(r_i/(r_i-self.c))/k_clad)
+        R_conv = (r_o/2)**2 *\
+        (1-(r_i/r_o)**2)*(1/(self.h_bar*(r_i - self.c)))
+        
+        q_trip_max = self.dt / (R_fuel + R_clad + R_conv)
+        
+        # consider axial flux variation
+        A_fuel = math.sqrt(3)*self.pitch**2 / 2
+        A_fuel -= (self.r_channel+self.c)**2 * math.pi
+        
+        self.q_per_channel = 2 * q_trip_max * A_fuel * self.L
+        self.q_bar = self.q_per_channel / (A_fuel * self.L)
+        
         # combine actual fuel volume with conservative q-bar to estimate
         # generation per pin.
-        Vol_fuel = math.sqrt(3)*self.pitch**2 * self.L / 2
-        Vol_fuel -= (self.r_channel+self.c)**2 * math.pi * self.L
-        self.q_per_channel = self.q_bar * Vol_fuel
         self.N_channels = math.ceil(Q_therm / self.q_per_channel)
 
     def calc_dp(self):
@@ -107,9 +118,9 @@ class FlowIteration:
             self.mass_flux_channel()
             self.calc_nondim()
             self.get_h_bar()
-            self.get_q_bar()
-            self.calc_N_channels(Q_therm)
+            self.get_q_bar(Q_therm)
             self.calc_dp()
+            print(self.N_channels)
             converge = self.check_converge()
             self.guess = self.N_channels
             self.iterations += 1

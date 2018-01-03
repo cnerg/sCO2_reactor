@@ -3,8 +3,8 @@
 """
 m_dot = 0.75 # coolant flow [kg/s]
 k_clad = 173e-3 # clad conductivity: W [kW/m-k]
-#k_fuel = 21e-3 # fuel conductivity: UN [kW/m-k]
-k_fuel = 42e-3 # fuel conductivity: UN [kW/m-k]
+k_fuel = 21e-3 # fuel conductivity: UN [kW/m-k]
+#k_fuel = 42e-3 # fuel conductivity: UN [kW/m-k]
 k_cool = 0.07531e-3 # coolant conductivity [kW/m-k]
 mu = 0.00004306 # coolant viscosity [kg/m-s]
 Cp_cool = 1.274 # coolant specific heat [kJ/kg-k]

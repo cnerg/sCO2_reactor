@@ -5,7 +5,7 @@ import numpy as np
 import argparse
 import sys
 
-L = 0.5
+L = 1
 c = 0.00031
 
 def oneD_flow_modeling(radius, pitch, guess):

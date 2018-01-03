@@ -55,21 +55,3 @@ def test_h_bar():
 """
 SOME FUNCTION TO TEST QBAR GOES HERE EVENTUALLY DO IT ALEX!!!!!!!
 """
-
-def test_vol_fuel():
-    test = FlowIteration(1, 2, 0.00031, 1, 1)
-    
-    A_hex = math.sqrt(3)*test.pitch*test.pitch / 2
-    A_chn = (test.r_channel+test.c)**2*math.pi
-
-    exp_vol = A_hex - A_chn
-    
-    test.mass_flux_channel()
-    test.calc_nondim()
-    test.q_bar = 1
-    test.calc_N_channels(100)
-
-    assert_equal(exp_vol, test.q_per_channel)
-
-
-
