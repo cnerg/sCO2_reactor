@@ -15,8 +15,10 @@ class FlowIteration:
         guess (int): initial number of flow channels [-]
     """
     # geometric attributes
-    r_channel = 0; PD = 0; c = 0; L = 0
+    r_channel = 0; PD = 0; c = 0; L = 0; Vol_fuel = 0; Vol_cool = 0; Vol_clad=0
     guess = 0; N_channels = 0
+    mass = 0
+    # temperature drop
     dt = T_centerline - T_bulk
     # heat transfer and non-dimensional coefficients
     h_bar = 0; Re = 0; Nu = 0; Pr = 0
@@ -92,11 +94,15 @@ class FlowIteration:
         
         # consider axial flux variation
         A_fuel = math.sqrt(3)*self.pitch**2 / 2
-        A_fuel -= (self.r_channel+self.c)**2 * math.pi
-        
+        A_cool = (self.r_channel + self.c)**2 * math.pi
+        A_fuel -= A_cool
+
         self.q_per_channel = 2 * q_trip_max * A_fuel * self.L
         self.q_bar = self.q_per_channel / (A_fuel * self.L)
         
+        self.Vol_fuel = A_fuel * self.L
+        self.Vol_cool = A_cool * self.L
+
         # combine actual fuel volume with conservative q-bar to estimate
         # generation per pin.
         self.N_channels = math.ceil(Q_therm / self.q_per_channel)
@@ -120,11 +126,18 @@ class FlowIteration:
             self.get_h_bar()
             self.get_q_bar(Q_therm)
             self.calc_dp()
-            print(self.N_channels)
             converge = self.check_converge()
             self.guess = self.N_channels
             self.iterations += 1
 
+    def calc_reactor_mass(self):
+        """Based on results of the iteration, calculate the reactor mass.
+        """
+        self.mass = self.Vol_fuel * rho_fuel
+        self.mass += self.Vol_cool * rho_cool
+        self.Vol_clad = ((self.r_channel + self.c)**2 - self.r_channel**2)
+        self.mass += self.Vol_clad * rho_W
+    
 class StoreIteration:
     """ Save Data For Analysis:
     
