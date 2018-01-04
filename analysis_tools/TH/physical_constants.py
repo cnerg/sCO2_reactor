@@ -17,19 +17,19 @@ def fuel_cond(T):
 
 m_dot = 0.75 # coolant flow [kg/s]
 
-k_clad = 108.3e-3 # clad conductivity: W @ 1473 K [kW/m-K]
-k_UN = 21e-3 # UN conductivity aver btw (100-2000 C) [kW/m-K]
-k_W = 100e-3 # tungsten conductivity @ 2000K [kW/m-K]
-k_cool = 0.07531e-3 # coolant conductivity [kW/m-k]
+k_clad = 108.3 # clad conductivity: W @ 1473 K [W/m-K]
+k_UN = 21 # UN conductivity aver btw (100-2000 C) [W/m-K]
+k_W = 100 # tungsten conductivity @ 2000K [W/m-K]
+k_cool = 0.07531 # coolant conductivity [W/m-k]
 fuel_frac = 0.6 # fuel fraction by volume
 
 mu = 0.00004306 # coolant viscosity [kg/m-s]
-Cp_cool = 1.274 # coolant specific heat [kJ/kg-k]
+Cp_cool = 1274 # coolant specific heat [J/kg-k]
 rho_cool = 87.13 # coolant density [kg/m^3]
 rho_W = 19250 # clad density [kg/m^3]
 rho_UN = 11300 # fuel density [kg/m^3]
 
-Q_therm = 141.2 # core thermal power [kW]
+Q_therm = 141200 # core thermal power [W]
 T_in = 962.9 # core inlet temp [K] (from power cycle model)
 T_out = 1100 # core outlet temp [K] (from power cycle model)
 T_bulk = T_in + (T_out - T_in) / 2 # bulk coolant temp. [K]
@@ -43,4 +43,3 @@ dp_allowed = abs(P_out - P_in)
 k_fuel = fuel_cond(T_centerline)
 # mixed density for CERMET fuel
 rho_fuel = fuel_frac*rho_UN + (1-fuel_frac)*rho_W
-
