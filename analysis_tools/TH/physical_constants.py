@@ -29,14 +29,14 @@ rho_cool = 87.13 # coolant density [kg/m^3]
 rho_W = 19250 # clad density [kg/m^3]
 rho_UN = 11300 # fuel density [kg/m^3]
 
-Q_therm = 131.2 # core thermal power [kW]
+Q_therm = 141.2 # core thermal power [kW]
 T_in = 962.9 # core inlet temp [K] (from power cycle model)
 T_out = 1100 # core outlet temp [K] (from power cycle model)
 T_bulk = T_in + (T_out - T_in) / 2 # bulk coolant temp. [K]
 T_centerline = 1847.5 # centerline fuel temperature [K]
 
-P_in = 1.791e7 # inlet pressure [Pa]
-P_out = 1.742e7 # outlet pressure [Pa]
+P_in = 1.79064e7 # inlet pressure [Pa]
+P_out = 1.74229e7 # outlet pressure [Pa]
 dp_allowed = abs(P_out - P_in)
 
 # conservative estimate for thermal conductivity at fuel centerline temperature.

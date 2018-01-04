@@ -45,17 +45,17 @@ def plot_mass(D, PD, M):
     ax.set_ylabel("Fuel Pitch to Coolant D Ratio [-]", fontsize=7)
     plt.yticks(rotation=25, fontsize=5)
     ax.set_zlabel("Fuel Mass [kg]", fontsize=7)
-    
+     
     # Customize the z axis.
     ax.set_zlim(np.min(M),np.max(M))
     ax.zaxis.set_major_locator(LinearLocator(10))
     ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
 
-
+    plt.title("Fuel Mass")
     # Add a color bar which maps values to colors.
     fig.colorbar(surf, shrink=0.5, aspect=5)
 
-    plt.savefig("reactor_mass_optimization.pdf", dpi=500)
+    plt.savefig("reactor_mass_optimization.png", dpi=500)
     plt.show()
 
 if __name__ == '__main__':
