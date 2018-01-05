@@ -100,12 +100,13 @@ class FlowIteration:
         self.q_per_channel = 2 * q_trip_max * A_fuel * self.L
         self.q_bar = self.q_per_channel / (A_fuel * self.L)
         
-        self.Vol_fuel = A_fuel * self.L
-        self.Vol_cool = A_cool * self.L
 
         # combine actual fuel volume with conservative q-bar to estimate
         # generation per pin.
         self.N_channels = math.ceil(Q_therm / self.q_per_channel)
+        
+        self.Vol_fuel = A_fuel * self.L * self.N_channels
+        self.Vol_cool = A_cool * self.L * self.N_channels
 
     def calc_dp(self):
         """Calculate pressure drop subchannel
@@ -134,9 +135,6 @@ class FlowIteration:
         """Based on results of the iteration, calculate the reactor mass.
         """
         self.mass = self.Vol_fuel * rho_fuel
-        self.mass += self.Vol_cool * rho_cool
-        self.Vol_clad = ((self.r_channel + self.c)**2 - self.r_channel**2)
-        self.mass += self.Vol_clad * rho_W
     
 class StoreIteration:
     """ Save Data For Analysis:
