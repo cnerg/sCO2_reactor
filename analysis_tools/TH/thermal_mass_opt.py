@@ -8,6 +8,17 @@ import numpy as np
 import argparse
 import sys
 
+titles = {'mass' : ("Total Fuel Mass", "m [kg]"),
+          'Re' : ("Reynolds Number", "Re [-]"),
+          'N_channels' : ("Number of Fuel Channels", "N Channels [-]"),
+          'Nu' : ("Nusselt Number", "Nu [-]"),
+          'dp' : ("Subchannel Pressure Drop", "dP [Pa]"),
+          'h_bar' : ("Heat Transfer Coefficient", "h [W / m^2 - K]"),
+          'q_per_channel' : ("Total Subchannel Heat Transfer", "q/channel [W]"),
+          'q_bar' : ("Average Volumetric Generation", "q_bar [W/m^3]"),
+          'v' : ("Flow Velocity", "v [m/s]")
+         }
+
 def sweep_configs(D, PD, z, c, N, key):
     """Perform parametric sweep through pin cell geometric space.
     """
@@ -24,7 +35,7 @@ def sweep_configs(D, PD, z, c, N, key):
     # sweep through parameter space, calculate min mass
     for i in range(N):
         for j in range(N):
-            flowdata = FlowIteration(D[i,j], PD[i,j], c, z, 10)
+            flowdata = FlowIteration(D[i,j], PD[i,j], c, z, 1)
             flowdata.Iterate()
             flowdata.calc_reactor_mass()
             M[i][j] = flowdata.__dict__[key]
@@ -44,7 +55,7 @@ def plot_mass(D, PD, M, key):
     plt.xticks(rotation=25, fontsize=6)
     ax.set_ylabel("Fuel Pitch to Coolant D Ratio [-]", fontsize=7)
     plt.yticks(rotation=25, fontsize=6)
-    ax.set_zlabel(key, fontsize=7)
+    ax.set_zlabel(titles[key][1], fontsize=7)
      
     # Customize the z axis.
     ax.set_zlim(np.min(M),np.max(M))
@@ -55,13 +66,13 @@ def plot_mass(D, PD, M, key):
     niceMathTextForm = ScalarFormatter(useMathText=True)
     ax.w_zaxis.set_major_formatter(niceMathTextForm)
     ax.ticklabel_format(axis="z", style="sci", scilimits=(0,0))
-    plt.title(key)
+    plt.title(titles[key][0])
     # Add a color bar which maps values to colors.
     fig.colorbar(surf, shrink=0.5, aspect=5, format='%.0e')
     
     savename = key + '.png'
-    plt.savefig(savename, dpi=500)
-#    plt.show()
+#    plt.savefig(savename, dpi=500)
+    plt.show()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

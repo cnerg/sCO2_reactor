@@ -15,8 +15,8 @@ class FlowIteration:
         guess (int): initial number of flow channels [-]
     """
     # geometric attributes
-    r_channel = 0; PD = 0; c = 0; L = 0; Vol_fuel = 0; Vol_cool = 0; Vol_clad=0
-    guess = 0; N_channels = 0
+    r_channel = 0; PD = 0; c = 0; L = 0; Vol_fuel = 0;
+    guess = 0; N_channels = 0; A_flow = 0; A_fuel = 0;
     mass = 0
     # temperature drop
     dt = T_centerline - T_bulk
@@ -29,8 +29,8 @@ class FlowIteration:
     
     def __init__(self, diameter, PD, c, L, guess):
         self.r_channel = diameter / 2.0
-        self.pitch = self.r_channel * PD * 2
         self.c = c
+        self.pitch = (self.r_channel + self.c) * PD * 2
         self.L = L
         self.guess = guess
         self.iterations = 0
@@ -53,10 +53,11 @@ class FlowIteration:
                    self.N_channels (int) number of fuel elements
         Returns: G_dot (float): coolant mass flux
         """
-        flow_area = math.pi *self.r_channel**2 * self.guess 
-        flow_perim = math.pi * self.r_channel * 2.0 * self.guess
-        self.G_dot = m_dot / flow_area
-        self.D_e = 4.0 * flow_area / flow_perim
+        self.A_flow = self.r_channel ** 2 * math.pi
+        self.A_fuel = math.sqrt(3)*self.pitch**2 / 2.0 -\
+                      (self.r_channel + self.c) ** 2 * math.pi
+        self.G_dot = m_dot / (self.A_flow * self.guess)
+        self.D_e = 2.0 * self.r_channel
         self.v = self.G_dot / rho_cool
 
     def calc_nondim(self):
@@ -82,32 +83,26 @@ class FlowIteration:
         """
         r_i = self.r_channel + self.c
         r_o = self.pitch
-        # this approximation does not consider axial flux variation!!!!
-        
+       
+        # El Wakil (9-62) calculates max q''' at axial centerline
         R_fuel = (r_o**2 / (4*k_fuel)) * ((r_i/r_o)**2 - 2*math.log(r_i/r_o) - 1)
         R_clad = (r_o/2)**2 *\
         (1-(r_i/r_o)**2)*(math.log(r_i/(r_i-self.c))/k_clad)
         R_conv = (r_o/2)**2 *\
         (1-(r_i/r_o)**2)*(1/(self.h_bar*(r_i - self.c)))
         
+        # calculate centerline volumetric generation
         q_trip_max = self.dt / (R_fuel + R_clad + R_conv)
         
         # consider axial flux variation
-        A_fuel = math.sqrt(3)*self.pitch**2 / 2.0
-        A_cool = (self.r_channel + self.c)**2 * math.pi
-        A_fuel -= A_cool
-
-        self.q_per_channel = 2 * q_trip_max * A_fuel * self.L
-        self.q_bar = self.q_per_channel / (A_fuel * self.L)
+        self.q_per_channel = 2 * q_trip_max * self.A_fuel * self.L / math.pi
         
-
-        # combine actual fuel volume with conservative q-bar to estimate
-        # generation per pin.
+        # calculate required number of channels
         self.N_channels = math.ceil(Q_therm / self.q_per_channel)
+        # calculate total fuel volume and q_bar
+        self.Vol_fuel = self.A_fuel * self.L * self.N_channels
+        self.q_bar = Q_therm / self.Vol_fuel
         
-        self.Vol_fuel = A_fuel * self.L * self.N_channels
-        self.Vol_cool = A_cool * self.L * self.N_channels
-
     def calc_dp(self):
         """Calculate pressure drop subchannel
         """
