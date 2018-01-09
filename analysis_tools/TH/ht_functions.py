@@ -1,4 +1,13 @@
+# Matplotlib imports
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+import matplotlib.axis
+from matplotlib import cm, rc
+from matplotlib.ticker import LinearLocator, FormatStrFormatter, ScalarFormatter
+# Other Imports
 import math
+import numpy as np
+import operator
 from physical_constants import *
 import matplotlib.pyplot as plt
 
@@ -70,10 +79,7 @@ class FlowIteration:
     
     def get_h_bar(self):
         """Calculate average heat transfer coefficient.
-        Arguments: 
-        Returns: h_bar (float) average heat transfer coefficient.
         """
-        
         self.h_bar = self.Nu * k_cool / self.D_e
 
     def get_q_bar(self, Q_therm):
@@ -130,52 +136,103 @@ class FlowIteration:
         """Based on results of the iteration, calculate the reactor mass.
         """
         self.mass = self.Vol_fuel * rho_fuel
-    
-class StoreIteration:
-    """ Save Data For Analysis:
-    
-    This object is used to store the results of the FlowIterations (see class
-    above). Upon instantiation, user must provide:
 
-    plotname: (str) Name of the plot, also used to save the plot.png file.
-    datatype: (str) identifier of the data the user wants to save.
-    labels: (tuple(str, str) ) desired plot labels
+class ParametricSweep():
+    """Class to store results of parametric sweeps for 1D flow channel analysis.
 
-    Options for datatypes are:
-        h_bar (average heat transfer coefficient)
-        Re (reynolds number for coolant flow)
-        G_dot (coolant mass flux)
-        D_e (hydraulic equivalent diameter)
-        v (coolant velocity)
-        q_bar (average heat generation per fuel cell)
-        N_channels (number of coolant channels)
-        dp (pressure loss through the channels)
     """
+    titles = {'mass' : ("Total Fuel Mass", "m [kg]"),
+              'Re' : ("Reynolds Number", "Re [-]"),
+              'N_channels' : ("Number of Fuel Channels", "N Channels [-]"),
+              'Nu' : ("Nusselt Number", "Nu [-]"),
+              'dp' : ("Subchannel Pressure Drop", "dP [Pa]"),
+              'h_bar' : ("Heat Transfer Coefficient", "h [W / m^2 - K]"),
+              'q_per_channel' : ("Total Subchannel Heat Transfer", "q/channel [W]"),
+              'q_bar' : ("Average Volumetric Generation", "q_bar [W/m^3]"),
+              'v' : ("Flow Velocity", "v [m/s]")
+             }
 
-    def __init__(self, plotname, datatype, labels):
-        # containers to store iteration data
-        self.data = {'name': plotname,
-                     'labels' : labels,
-                     'x' : [],
-                     'y' : []
-                    }
-        self.datatype = datatype
+    datacats = ['mass', 'Re', 'N_channels', 'Nu', 'dp', 'h_bar',
+            'q_per_channel', 'q_bar', 'v']
+    
+    D = 0; PD = 0;
+    
+    # dict to save data for plotting
+    data = {k: [] for k in datacats}
+    mindata = {k: [] for k in datacats}
+    min_idx = 0; min_jdk = 0; min_mass = 1e9; minD = 0; min_PD = 0;
+    
+    def __init__(self, D, PD, N):
+        self.D = D
+        self.PD = PD
+        self.N = N
+        for key in self.data:
+            self.data[key] = np.empty([N,N])
 
-    def store_data(self, x, iteration):
-        """Store the desired data (see datatype) and the provided independent
-        variable.
+    def save_iteration(self, iteration, i, j):
+        """ Save the data from each iteration of the parametric sweep. 
         """
-        self.data['x'].append(x)
-        self.data['y'].append(iteration.__dict__[self.datatype])
+        for key in self.data.keys():
+            self.data[key][i][j] = iteration.__dict__[key]
 
-    def plot(self, show=False):
-        """Plot the stored data
+    def get_min_data(self):
+        """ After the parametric sweep is complete, find the minimum calculated
+        fuel mass. Save the flowdat for that point, display the PD, D and mass
+        for the optimized configuration.
         """
-        plt.plot(self.data['x'], self.data['y'])
-        plt.xlabel(self.data['labels'][0])
-        plt.ylabel(self.data['labels'][1])
-        plt.title(self.data['name'])
-        plt.savefig(self.data['name'] + '.png', dpi=500)
-        # If user provides option show=True, display plot
-        if show == True:
-            plt.show()
+        # search the results for minimum-mass configuration
+        for i, diameter in enumerate(self.D):
+            j, min_val = min(enumerate(self.data['mass'][i]),
+                key=operator.itemgetter(1))
+            if min_val < self.min_mass:
+                self.min_mass = min_val
+                self.min_idx = j
+                self.min_jdx = i
+
+        # save the optimal configuration
+        self.minD = self.D[self.min_idx][self.min_jdx]
+        self.minPD = self.PD[self.min_idx][self.min_jdx]
+        # save the flow data for optimized configuration
+        for key in self.data:
+            self.mindata[key] = self.data[key][self.min_idx][self.min_jdx]
+        # report the optimal configuration and it's corresponding fuel mass 
+        outstring =  "1D Thermal Hydraulics Optimization Results:\n"
+        outstring += "Reactor minimum mass (m = " + str(round(self.min_mass,3))\
+        + "[kg]) " + " occurs at D = " + str(self.minD) +  "[m] & PD = "\
+        + str(self.minPD) + "[-]."
+        print(outstring)
+
+    def plot(self, D, PD, key):
+        """Produce surface plot of the flow results as function of PD and coolant
+        channel diameter.
+        """
+        # get parametric sweep data
+        M = self.data[key]
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+        surf = ax.plot_surface(D, PD, M, cmap=cm.viridis, linewidth=0,
+                antialiased=False)
+
+        # set x/y axis labels, ticks
+        ax.set_xlabel("Coolant Channel Diameter [m]", fontsize=7)
+        plt.xticks(rotation=25, fontsize=6)
+        ax.set_ylabel("Fuel Pitch to Coolant D Ratio [-]", fontsize=7)
+        plt.yticks(rotation=25, fontsize=6)
+        ax.set_zlabel(self.titles[key][1], fontsize=7)
+         
+        # Customize the z axis.
+        ax.set_zlim(np.min(M),np.max(M))
+        ax.zaxis.set_major_locator(LinearLocator(10))
+        ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+        
+        # edit z tick labels
+        for t in ax.zaxis.get_major_ticks(): t.label.set_fontsize(6)
+        niceMathTextForm = ScalarFormatter(useMathText=True)
+        ax.w_zaxis.set_major_formatter(niceMathTextForm)
+        ax.ticklabel_format(axis="z", style="sci", scilimits=(0,0))
+        plt.title(self.titles[key][0])
+        
+        # Add a color bar which maps values to colors.
+        fig.colorbar(surf, shrink=0.5, aspect=5, format='%.0e')
+        
+        return plt

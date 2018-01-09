@@ -1,34 +1,12 @@
-from ht_functions import FlowIteration, StoreIteration
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
-import matplotlib.axis
-from matplotlib import cm, rc
-from matplotlib.ticker import LinearLocator, FormatStrFormatter, ScalarFormatter
+# Other imports
 import numpy as np
 import argparse
 import sys
+# Import TH functions
+from ht_functions import FlowIteration, ParametricSweep
 
-class para_sweep_data():
-    
-    mass = [None]; Re = [None]; N_channels = [None];
-    Nu = [None]; dp = [None]; h_bar = [None]; q_per_channel = [None];
-    q_bar = [None]; v = [None];
-
-    def __init__(self, N):
         
-
-titles = {'mass' : ("Total Fuel Mass", "m [kg]"),
-          'Re' : ("Reynolds Number", "Re [-]"),
-          'N_channels' : ("Number of Fuel Channels", "N Channels [-]"),
-          'Nu' : ("Nusselt Number", "Nu [-]"),
-          'dp' : ("Subchannel Pressure Drop", "dP [Pa]"),
-          'h_bar' : ("Heat Transfer Coefficient", "h [W / m^2 - K]"),
-          'q_per_channel' : ("Total Subchannel Heat Transfer", "q/channel [W]"),
-          'q_bar' : ("Average Volumetric Generation", "q_bar [W/m^3]"),
-          'v' : ("Flow Velocity", "v [m/s]")
-         }
-
-def sweep_configs(D, PD, z, c, N, key):
+def sweep_configs(D, PD, z, c, N, key, save=False):
     """Perform parametric sweep through pin cell geometric space.
     """
     # calculate appropriate step sizes given range
@@ -40,58 +18,25 @@ def sweep_configs(D, PD, z, c, N, key):
 
     # create parameter mesh
     D, PD = np.meshgrid(D, PD)
-    M = np.empty([N,N])
-    min_N_channels = 1e9
-    min_mass = 1e9
-
+    
+    # initialize object to save sweep results
+    sweepresults = ParametricSweep(D, PD, N)
     # sweep through parameter space, calculate min mass
     for i in range(N):
         for j in range(N):
             flowdata = FlowIteration(D[i,j], PD[i,j], c, z, 1)
             flowdata.Iterate()
             flowdata.calc_reactor_mass()
-            if flowdata.N_channels < min_N_channels:
-                min_N_channels = flowdata.N_channels
-                min_mass = flowdata.mass
-            M[i][j] = flowdata.__dict__[key]
-    print("Minimum number of fuel channels required:")
-    print(min_N_channels)
-    print("Minimum fuel mass:")
-    print(round(min_mass,3))
-
-    return D, PD, M
-
-def plot_mass(D, PD, M, key):
-    """Produce surface plot of the reactor mass as function of PD and coolant
-    channel diameter.
-    """
-    fig = plt.figure()
-    ax = fig.gca(projection='3d')
-    surf = ax.plot_surface(D, PD, M, cmap=cm.viridis, linewidth=0,
-            antialiased=False)
+            sweepresults.save_iteration(flowdata, i, j)
     
-    ax.set_xlabel("Coolant Channel Diameter [m]", fontsize=7)
-    plt.xticks(rotation=25, fontsize=6)
-    ax.set_ylabel("Fuel Pitch to Coolant D Ratio [-]", fontsize=7)
-    plt.yticks(rotation=25, fontsize=6)
-    ax.set_zlabel(titles[key][1], fontsize=7)
-     
-    # Customize the z axis.
-    ax.set_zlim(np.min(M),np.max(M))
-    ax.zaxis.set_major_locator(LinearLocator(10))
-    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-    # edit z tick labels
-    for t in ax.zaxis.get_major_ticks(): t.label.set_fontsize(6)
-    niceMathTextForm = ScalarFormatter(useMathText=True)
-    ax.w_zaxis.set_major_formatter(niceMathTextForm)
-    ax.ticklabel_format(axis="z", style="sci", scilimits=(0,0))
-    plt.title(titles[key][0])
-    # Add a color bar which maps values to colors.
-    fig.colorbar(surf, shrink=0.5, aspect=5, format='%.0e')
+    sweepresults.get_min_data()
+    plt = sweepresults.plot(D, PD, key)
     
-    savename = key + '.png'
-#    plt.savefig(savename, dpi=500)
-#    plt.show()
+    if save == True:
+        savename = key + '.png'
+        plt.savefig(savename, dpi=500)
+
+    plt.show()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -111,9 +56,7 @@ if __name__ == '__main__':
 diameter! Set min PD > 1!")
         sys.exit()
 
-    Diameters, PDs, Masses = sweep_configs((args.d_lower, args.d_upper),
+    sweep_configs((args.d_lower, args.d_upper),
                                    (args.pd_lower, args.pd_upper), 
-                                   args.z, args.clad_t, args.steps, args.plotkey)
-    # plot results
-    plot_mass(Diameters, PDs, Masses, args.plotkey)
-
+                                   args.z, args.clad_t, args.steps,
+                                   args.plotkey, True)
