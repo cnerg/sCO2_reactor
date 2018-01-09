@@ -139,7 +139,7 @@ class FlowIteration:
 
 class ParametricSweep():
     """Class to store results of parametric sweeps for 1D flow channel analysis.
-
+    
     """
     titles = {'mass' : ("Total Fuel Mass", "m [kg]"),
               'Re' : ("Reynolds Number", "Re [-]"),
@@ -147,7 +147,7 @@ class ParametricSweep():
               'Nu' : ("Nusselt Number", "Nu [-]"),
               'dp' : ("Subchannel Pressure Drop", "dP [Pa]"),
               'h_bar' : ("Heat Transfer Coefficient", "h [W / m^2 - K]"),
-              'q_per_channel' : ("Total Subchannel Heat Transfer", "q/channel [W]"),
+              'q_per_channel' : ("Total Subchannel Generation", "q/channel [W]"),
               'q_bar' : ("Average Volumetric Generation", "q_bar [W/m^3]"),
               'v' : ("Flow Velocity", "v [m/s]")
              }
