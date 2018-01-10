@@ -1,4 +1,4 @@
-from ht_functions import FlowIteration, StoreIteration
+from ht_functions import FlowIteration
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse

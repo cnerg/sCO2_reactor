@@ -31,6 +31,7 @@ class FlowIteration:
     dt = T_centerline - T_bulk
     # heat transfer and non-dimensional coefficients
     h_bar = 0; Re = 0; Nu = 0; Pr = 0
+    R_fuel = 0; R_clad = 0; R_conv = 0;
     # flow parameters
     G_dot = 0; D_e = 0; v = 0; dp = 0
     # heat generation
@@ -88,17 +89,17 @@ class FlowIteration:
         flow channels.
         """
         r_i = self.r_channel + self.c
-        r_o = self.pitch
+        r_o = self.pitch / math.sqrt(3)
        
         # El Wakil (9-62) calculates max q''' at axial centerline
-        R_fuel = (r_o**2 / (4*k_fuel)) * ((r_i/r_o)**2 - 2*math.log(r_i/r_o) - 1)
-        R_clad = (r_o/2)**2 *\
+        self.R_fuel = (r_o**2 / (4*k_fuel)) * ((r_i/r_o)**2 - 2*math.log(r_i/r_o) - 1)
+        self.R_clad = (r_o/2)**2 *\
         (1-(r_i/r_o)**2)*(math.log(r_i/(r_i-self.c))/k_clad)
-        R_conv = (r_o/2)**2 *\
+        self.R_conv = (r_o/2)**2 *\
         (1-(r_i/r_o)**2)*(1/(self.h_bar*(r_i - self.c)))
         
         # calculate centerline volumetric generation
-        q_trip_max = self.dt / (R_fuel + R_clad + R_conv)
+        q_trip_max = self.dt / (self.R_fuel + self.R_clad + self.R_conv)
         
         # consider axial flux variation
         self.q_per_channel = 2 * q_trip_max * self.A_fuel * self.L / math.pi
@@ -143,17 +144,21 @@ class ParametricSweep():
     """
     titles = {'mass' : ("Total Fuel Mass", "m [kg]"),
               'Re' : ("Reynolds Number", "Re [-]"),
+              'G_dot' : ("Reactor Mass Flux", "G_dot [kg/m^2-s]"),
               'N_channels' : ("Number of Fuel Channels", "N Channels [-]"),
               'Nu' : ("Nusselt Number", "Nu [-]"),
               'dp' : ("Subchannel Pressure Drop", "dP [Pa]"),
               'h_bar' : ("Heat Transfer Coefficient", "h [W / m^2 - K]"),
               'q_per_channel' : ("Total Subchannel Generation", "q/channel [W]"),
               'q_bar' : ("Average Volumetric Generation", "q_bar [W/m^3]"),
-              'v' : ("Flow Velocity", "v [m/s]")
+              'v' : ("Flow Velocity", "v [m/s]"),
+              'R_fuel' : ("Resistance to Conduction in Fuel", "R_fuel [K/W]"),
+              'R_clad' : ("Resistance to Conduction in Clad", "R_clad [K/W]"),
+              'R_conv' : ("Resistance to Convection", "R_conv [K/W]")
              }
 
-    datacats = ['mass', 'Re', 'N_channels', 'Nu', 'dp', 'h_bar',
-            'q_per_channel', 'q_bar', 'v']
+    datacats = ['mass', 'Re', 'G_dot', 'N_channels', 'Nu', 'dp', 'h_bar',
+            'q_per_channel', 'q_bar', 'v', 'R_fuel', 'R_clad', 'R_conv']
     
     D = 0; PD = 0;
     
