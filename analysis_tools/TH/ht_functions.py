@@ -31,7 +31,7 @@ class FlowIteration:
     dt = T_centerline - T_bulk
     # heat transfer and non-dimensional coefficients
     h_bar = 0; Re = 0; Nu = 0; Pr = 0
-    R_fuel = 0; R_clad = 0; R_conv = 0;
+    R_fuel = 0; R_clad = 0; R_conv = 0; R_tot = 0;
     # flow parameters
     G_dot = 0; D_e = 0; v = 0; dp = 0
     # heat generation
@@ -97,9 +97,10 @@ class FlowIteration:
         (1-(r_i/r_o)**2)*(math.log(r_i/(r_i-self.c))/k_clad)
         self.R_conv = (r_o/2)**2 *\
         (1-(r_i/r_o)**2)*(1/(self.h_bar*(r_i - self.c)))
+        self.R_tot = self.R_fuel + self.R_clad + self.R_conv
         
         # calculate centerline volumetric generation
-        q_trip_max = self.dt / (self.R_fuel + self.R_clad + self.R_conv)
+        q_trip_max = self.dt / self.R_tot
         
         # consider axial flux variation
         self.q_per_channel = 2 * q_trip_max * self.A_fuel * self.L / math.pi
@@ -154,17 +155,15 @@ class ParametricSweep():
               'v' : ("Flow Velocity", "v [m/s]"),
               'R_fuel' : ("Resistance to Conduction in Fuel", "R_fuel [K/W]"),
               'R_clad' : ("Resistance to Conduction in Clad", "R_clad [K/W]"),
-              'R_conv' : ("Resistance to Convection", "R_conv [K/W]")
+              'R_conv' : ("Resistance to Convection", "R_conv [K/W]"),
+              'R_tot' : ("Total Resistance to Heat Transfer", "R_tot [K/W]")
              }
 
-    datacats = ['mass', 'Re', 'G_dot', 'N_channels', 'Nu', 'dp', 'h_bar',
-            'q_per_channel', 'q_bar', 'v', 'R_fuel', 'R_clad', 'R_conv']
-    
     D = 0; PD = 0;
     
     # dict to save data for plotting
-    data = {k: [] for k in datacats}
-    mindata = {k: [] for k in datacats}
+    data = {k: [] for k in titles.keys()}
+    mindata = {k: [] for k in titles.keys()}
     min_idx = 0; min_jdk = 0; min_mass = 1e9; minD = 0; min_PD = 0;
     
     def __init__(self, D, PD, N):
