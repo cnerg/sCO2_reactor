@@ -8,8 +8,23 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter, ScalarFormatter
 import math
 import numpy as np
 import operator
+from scipy.optimize import minimize
 from physical_constants import *
 import matplotlib.pyplot as plt
+    
+def _error(guess, flowiteration):
+    """ Calculate squared error between guess value and N channels for all
+    three guess values.
+    """
+    for i in range(0,3):
+        flowiteration.guess = guess
+        flowiteration.guess_idx = i
+        flowiteration.mass_flux_channel()
+        flowiteration.calc_nondim()
+        flowiteration.get_h_bar()
+        flowiteration.get_q_bar()
+        flowiteration.calc_dp()
+    flowiteration.error = (flowiteration.guess - flowiteration.N_channels)**2
 
 class FlowIteration:
     """ Perform 1D Flow Analysis
@@ -25,7 +40,7 @@ class FlowIteration:
     """
     # geometric attributes
     r_channel = 0; PD = 0; c = 0; L = 0; Vol_fuel = 0;
-    guess = np.array([1, 10, 20]); N_channels = np.zeros(3); error = np.zeros(3)
+    guess = np.zeros(3); N_channels = np.zeros(3); error = np.ones(3)
     guess_idx = 0
     A_flow = 0; A_fuel = 0;
     mass = 0
@@ -39,26 +54,13 @@ class FlowIteration:
     # heat generation
     q_bar = 0; q_per_channel = 0; q_therm_check = 0
     
-    def __init__(self, diameter, PD, c, L, guess):
+    def __init__(self, diameter, PD, c, L):
         self.r_channel = diameter / 2.0
         self.c = c
         self.pitch = (self.r_channel + self.c) * PD * 2
         self.L = L
-#        self.guess = guess
         self.iterations = 0
 
-    def check_converge(self):
-        """Test for solution convergence and pressure limit.
-        """
-        if self.N_channels == self.guess:
-            if self.dp < dp_allowed:
-                return True
-            else:
-                self.N_channels += 1
-                return False
-        else:
-            return False
-    
     def mass_flux_channel(self):
         """Calculate coolant mass flux through 1 CERMET flow channel.
         Arguments: flow_radius (float) flow channel radius
@@ -85,7 +87,7 @@ class FlowIteration:
         """
         self.h_bar = self.Nu * k_cool / self.D_e
 
-    def get_q_bar(self, Q_therm):
+    def get_q_bar(self):
         """Calculate heat transfer from fuel element. Convert q_bar max from
         cylindrical geometry to hexagonal geometry. Calculate number of required
         flow channels.
@@ -108,7 +110,7 @@ class FlowIteration:
         self.q_per_channel = 2 * q_trip_max * self.A_fuel * self.L / math.pi
         
         # calculate required number of channels
-        self.N_channels[self.guess_idx] = math.ceil(Q_therm / self.q_per_channel)
+        self.N_channels[self.guess_idx] = Q_therm / self.q_per_channel
         # calculate total fuel volume and q_bar
         self.Vol_fuel = self.A_fuel * self.L * self.N_channels[self.guess_idx]
         self.q_bar = Q_therm / self.Vol_fuel
@@ -121,25 +123,49 @@ class FlowIteration:
         # Darcy pressure drop (El-Wakil 9-3)
         self.dp = f * self.L * rho_cool * self.v * self.v / (2*self.D_e)
 
-    def fit_error(self):
-        """
-        """
-    
-    def Iterate(self):
-        """Perform Flow Calc Iteration
+    def calc_error(self, guess):
+        """ Calculate squared error between guess value and N channels for all
+        three guess values.
         """
         for i in range(0,3):
+            self.guess = guess
             self.guess_idx = i
             self.mass_flux_channel()
             self.calc_nondim()
             self.get_h_bar()
-            self.get_q_bar(Q_therm)
+            self.get_q_bar()
             self.calc_dp()
-
-        self.error = abs(self.guess - self.N_channels)
+        self.error = (self.guess - self.N_channels)**2
+    
+    def fit_error(self):
+        """ Fit a quadratic function to the error.
+        """
+        # calculate square of error
+        # get index for maximum error of the three guesses
+        max_err_idx, val = max(enumerate(self.error),
+                key=operator.itemgetter(1))
+        min_err_idx, val = min(enumerate(self.error),
+                key=operator.itemgetter(1))
+        # fit polynomial, take deriv, find and evaluate roots
+        fit_coeffs = np.polyfit(self.guess, self.error, 2)
+        poly = np.poly1d(fit_coeffs)
+        D = np.multiply(fit_coeffs, [2,1,0])[0:2]
+        Dpoly = np.poly1d(D)
+        roots = Dpoly.roots
+        print(max_err_idx)
         print(self.error)
+        # replace point of greatest error with min error from curve fit
+        self.guess[max_err_idx] = min(filter(lambda x: x > 0, roots))
 
+        return min_err_idx
 
+    def Iterate(self):
+        """Perform Flow Calc Iteration
+        """
+        x0 = [1, 15, 100]
+        res = minimize(_error, x0, args=(self))
+        
+        self.N_channels = math.ceil(self.N_channels[min_err_idx])
 
     def calc_reactor_mass(self):
         """Based on results of the iteration, calculate the reactor mass.

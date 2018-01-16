@@ -24,7 +24,7 @@ def sweep_configs(D, PD, z, c, N, key, save=False):
     # sweep through parameter space, calculate min mass
     for i in range(N):
         for j in range(N):
-            flowdata = FlowIteration(D[i,j], PD[i,j], c, z, 1)
+            flowdata = FlowIteration(D[i,j], PD[i,j], c, z)
             flowdata.Iterate()
             flowdata.calc_reactor_mass()
             sweepresults.save_iteration(flowdata, i, j)
