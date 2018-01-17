@@ -87,7 +87,7 @@ class FlowIteration:
         """
         self.h_bar = self.Nu * k_cool / self.D_e
 
-    def get_q_bar(self):
+    def get_q_per_channel(self):
         """Calculate heat transfer from fuel element. Convert q_bar max from
         cylindrical geometry to hexagonal geometry. Calculate number of required
         flow channels.
@@ -108,7 +108,10 @@ class FlowIteration:
         
         # consider axial flux variation
         self.q_per_channel = 2 * q_trip_max * self.A_fuel * self.L / math.pi
+
+    def get_q_bar(self):
         
+        self.get_q_per_channel()
         # calculate required number of channels
         self.N_channels = Q_therm / self.q_per_channel
         # calculate total fuel volume and q_bar
@@ -122,6 +125,30 @@ class FlowIteration:
         f = 0.184 / math.pow(self.Re, 0.2)
         # Darcy pressure drop (El-Wakil 9-3)
         self.dp = f * self.L * rho_cool * self.v * self.v / (2*self.D_e)
+    
+    def get_dp_constrained_Nchannels(self):
+        
+        v_req = 2*self.D_e * self.dp / (0.184 * math.pow(self.Re, -0.2)\
+                                      * self.L * rho_cool)
+        required_G_dot = v_req / rho_cool
+        
+        return m_dot / (self.A_flow * required_G_dot)
+    
+    def check_new_channels(self, req_channels):
+        """Chec the validity of new channel configuration to meet dP
+        constraints.
+        """
+
+        self.guess = req_channels
+        self.mass_flux_channel()
+        self.calc_nondim()
+        self.get_h_bar()
+        self.get_q_per_channel()
+
+        if self.q_per_channel * req_channels >= Q_therm:
+            return True
+        else:
+            return False
 
     def calc_aspect_ratio(self):
         total_area = (self.A_fuel + self.A_flow) * self.N_channels
