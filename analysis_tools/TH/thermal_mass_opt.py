@@ -6,7 +6,7 @@ import sys
 from ht_functions import FlowIteration, ParametricSweep
 
         
-def sweep_configs(D, PD, z, c, N, key, save=False):
+def sweep_configs(D, PD, z, c, N, key, AR_select, save=False):
     """Perform parametric sweep through pin cell geometric space.
     """
     # calculate appropriate step sizes given range
@@ -20,7 +20,7 @@ def sweep_configs(D, PD, z, c, N, key, save=False):
     D, PD = np.meshgrid(D, PD)
     
     # initialize object to save sweep results
-    sweepresults = ParametricSweep(D, PD, N)
+    sweepresults = ParametricSweep(D, PD, N, AR_select)
     # sweep through parameter space, calculate min mass
     for i in range(N):
         for j in range(N):
@@ -48,6 +48,8 @@ if __name__ == '__main__':
     parser.add_argument("clad_t", type=float, help="cladding thickness [m]")
     parser.add_argument("steps", type=int, help="parameter resolution")
     parser.add_argument("plotkey", type=str, help="parameter parameter to plot")
+    parser.add_argument("--AR", action='store_true', dest='AR_select',
+            default=False, help="--selects data corresponding to valid AR's")
 
     args = parser.parse_args()
     
@@ -59,4 +61,4 @@ diameter! Set min PD > 1!")
     sweep_configs((args.d_lower, args.d_upper),
                                    (args.pd_lower, args.pd_upper), 
                                    args.z, args.clad_t, args.steps,
-                                   args.plotkey, True)
+                                   args.plotkey, args.AR_select, True)

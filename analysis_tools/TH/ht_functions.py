@@ -8,6 +8,7 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter, ScalarFormatter
 import math
 import numpy as np
 import operator
+import sys
 from scipy.optimize import minimize, minimize_scalar
 from physical_constants import *
 import matplotlib.pyplot as plt
@@ -21,7 +22,7 @@ def _error(guess, flowiteration):
     flowiteration.calc_nondim()
     flowiteration.get_h_bar()
     flowiteration.get_q_bar()
-    flowiteration.calc_dp()
+    flowiteration.calc_aspect_ratio()
     flowiteration.error = (flowiteration.guess - flowiteration.N_channels)**2
     
     return flowiteration.error
@@ -39,9 +40,8 @@ class FlowIteration:
         guess (int): initial number of flow channels [-]
     """
     # geometric attributes
-    r_channel = 0; PD = 0; c = 0; L = 0; Vol_fuel = 0;
+    r_channel = 0; PD = 0; c = 0; L = 0; Vol_fuel = 0; AR = 0
     guess = 0; N_channels = 0; error = 0
-    guess_idx = 0
     A_flow = 0; A_fuel = 0;
     mass = 0
     # temperature drop
@@ -123,12 +123,17 @@ class FlowIteration:
         # Darcy pressure drop (El-Wakil 9-3)
         self.dp = f * self.L * rho_cool * self.v * self.v / (2*self.D_e)
 
+    def calc_aspect_ratio(self):
+        total_area = (self.A_fuel + self.A_flow) * self.N_channels
+        equivalent_radius = math.sqrt(total_area / math.pi) 
+        self.AR = self.L / (2*equivalent_radius)
+
     def Iterate(self):
         """Perform Flow Calc Iteration
         """
-        res = minimize_scalar(_error, bounds=(1,1e9), args=(self),
+        res = minimize_scalar(_error, bounds=(1, 1e9), args=(self),
         method='Bounded')
-        print(res)
+        self.calc_dp()
         self.N_channels = math.ceil(self.N_channels)
 
     def calc_reactor_mass(self):
@@ -153,20 +158,22 @@ class ParametricSweep():
               'R_fuel' : ("Resistance to Conduction in Fuel", "R_fuel [K/W]"),
               'R_clad' : ("Resistance to Conduction in Clad", "R_clad [K/W]"),
               'R_conv' : ("Resistance to Convection", "R_conv [K/W]"),
-              'R_tot' : ("Total Resistance to Heat Transfer", "R_tot [K/W]")
+              'R_tot' : ("Total Resistance to Heat Transfer", "R_tot [K/W]"),
+              'AR' : ("Approximate Core Aspect Ratio", "AR [-]")
              }
 
     D = 0; PD = 0;
     
     # dict to save data for plotting
     data = {k: [] for k in titles.keys()}
-    mindata = {k: [] for k in titles.keys()}
-    min_idx = 0; min_jdk = 0; min_mass = 1e9; minD = 0; min_PD = 0;
+    min_idx = None; min_jdk = None; min_mass = 0; minD = 0; min_PD = 0;
+    select_AR = False
     
-    def __init__(self, D, PD, N):
+    def __init__(self, D, PD, N, select_AR):
         self.D = D
         self.PD = PD
         self.N = N
+        self.select_AR = select_AR
         for key in self.data:
             self.data[key] = np.empty([N,N])
 
@@ -178,24 +185,45 @@ class ParametricSweep():
 
     def get_min_data(self):
         """ After the parametric sweep is complete, find the minimum calculated
-        fuel mass. Save the flowdat for that point, display the PD, D and mass
-        for the optimized configuration.
+        fuel mass corresponding with a valid aspect ratio. Save the flowdata for that
+        point, display the PD, D and mass for the optimized configuration.
         """
+        
+        if False not in np.isnan(self.data['mass']):
+            print("The range you have selected does not satisfy pressure drop\
+ requirements, consider increasing coolant flow channel diameter")
+            sys.exit()
+
+        not_AR = 1
+        if self.select_AR == True:
+            not_AR = np.nan
+
+        # calculate departure from AR = 1
+        aspect_err = np.subtract(self.data['AR'], np.ones([self.N, self.N]))
+        aspect_err = np.abs(aspect_err)
+        # select AR error no greater than 0.33 (based on NuScale AR = 1.33)
+        on_off = lambda x: not_AR if x > 0.33 else 1
+        vfunc = np.vectorize(on_off)
+
+        for key in self.data:
+            self.data[key] = np.multiply(vfunc(aspect_err), self.data[key])
+        
+        if False not in np.isnan(self.data['AR']):
+            print("The range you have selected does not satisfy aspect ratio\
+ requirements, consider a new geometry range")
+            sys.exit()
+        
         # search the results for minimum-mass configuration
-        for i, diameter in enumerate(self.D):
-            j, min_val = min(enumerate(self.data['mass'][i]),
-                key=operator.itemgetter(1))
-            if min_val < self.min_mass:
-                self.min_mass = min_val
-                self.min_idx = j
-                self.min_jdx = i
+        mindices_mass = np.unravel_index(
+                   np.nanargmin(self.data['mass']), self.data['mass'].shape)
+        # get data for optimal AR
+        self.min_idx, self.min_jdx = mindices_mass
+        self.min_mass = self.data['mass'][self.min_idx][self.min_jdx]
 
         # save the optimal configuration
         self.minD = self.D[self.min_idx][self.min_jdx]
         self.minPD = self.PD[self.min_idx][self.min_jdx]
-        # save the flow data for optimized configuration
-        for key in self.data:
-            self.mindata[key] = self.data[key][self.min_idx][self.min_jdx]
+        
         # report the optimal configuration and it's corresponding fuel mass 
         outstring =  "1D Thermal Hydraulics Optimization Results:\n"
         outstring += "Reactor minimum mass (m = " + str(round(self.min_mass,3))\
@@ -211,8 +239,10 @@ class ParametricSweep():
         M = self.data[key]
         fig = plt.figure()
         ax = fig.gca(projection='3d')
-        surf = ax.plot_surface(D, PD, M, cmap=cm.viridis, linewidth=0,
-                antialiased=False)
+        surf = ax.plot_surface(D, PD, M, 
+                               cmap=cm.viridis, linewidth=0,
+                               vmin=0, vmax=np.nanmax(M),
+                               antialiased=False)
 
         # set x/y axis labels, ticks
         ax.set_xlabel("Coolant Channel Diameter [m]", fontsize=7)
@@ -222,7 +252,7 @@ class ParametricSweep():
         ax.set_zlabel(self.titles[key][1], fontsize=7)
          
         # Customize the z axis.
-        ax.set_zlim(np.min(M),np.max(M))
+        ax.set_zlim(np.nanmin(M),np.nanmax(M))
         ax.zaxis.set_major_locator(LinearLocator(10))
         ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
         
