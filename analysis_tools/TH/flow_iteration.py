@@ -7,11 +7,12 @@ import sys
 
 def oneD_flow_modeling(diameter, PD, L, c):
     test = FlowIteration(diameter, PD, c, L)
-    test.Iterate()
+    test.oneD_calc()
+    test.check_dp()
     test.calc_reactor_mass()
+    test.calc_aspect_ratio()
     data = test.__dict__
     del data['error']
-    
     print([(key, str(round(data[key], 3))) for key in sorted(data.keys())])
 
 if __name__ == '__main__':

@@ -18,11 +18,7 @@ def _error(guess, flowiteration):
     three guess values.
     """
     flowiteration.guess = guess
-    flowiteration.mass_flux_channel()
-    flowiteration.calc_nondim()
-    flowiteration.get_h_bar()
-    flowiteration.get_q_bar()
-    flowiteration.calc_aspect_ratio()
+    flowiteration.Iterate()
     flowiteration.error = (flowiteration.guess - flowiteration.N_channels)**2
     
     return flowiteration.error
@@ -40,14 +36,12 @@ class FlowIteration:
         guess (int): initial number of flow channels [-]
     """
     # geometric attributes
-    r_channel = 0; PD = 0; c = 0; L = 0; Vol_fuel = 0; AR = 0
+    Vol_fuel = 0; AR = 0
     guess = 0; N_channels = 0; error = 0
-    A_flow = 0; A_fuel = 0;
-    mass = 0
     # temperature drop
     dt = T_centerline - T_bulk
     # heat transfer and non-dimensional coefficients
-    h_bar = 0; Re = 0; Nu = 0; Pr = 0
+    h_bar = 0; Re = 0; Nu = 0; Pr = 0; f = 0;
     R_fuel = 0; R_clad = 0; R_conv = 0; R_tot = 0;
     # flow parameters
     G_dot = 0; D_e = 0; v = 0; dp = 0
@@ -55,52 +49,79 @@ class FlowIteration:
     q_bar = 0; q_per_channel = 0; q_therm_check = 0
     
     def __init__(self, diameter, PD, c, L):
+        """Initialize the flow iteration class.
+            r_channel: radius of coolant channel [m]
+            c: cladding thickness [m]
+            pitch: fuel thickness (minor axis of hexagon) [m]
+            L: length of core [m]
+        """
         self.r_channel = diameter / 2.0
         self.c = c
         self.pitch = (self.r_channel + self.c) * PD * 2
         self.L = L
-        self.iterations = 0
 
-    def mass_flux_channel(self):
-        """Calculate coolant mass flux through 1 CERMET flow channel.
-        Arguments: flow_radius (float) flow channel radius
-                   self.N_channels (int) number of fuel elements
-        Returns: G_dot (float): coolant mass flux
+    def set_geom(self):
+        """Setup the problem geometry.
+            A_flow: flow area per fuel channel.
+            A_fuel: fuel area per fuel channel.
+            G_dot: mass flux through all flow channels
+            D_e: equivalent flow diameter
         """
         self.A_flow = self.r_channel ** 2 * math.pi
         self.A_fuel = math.sqrt(3)*self.pitch**2 / 2.0 -\
                       (self.r_channel + self.c) ** 2 * math.pi
         self.G_dot = m_dot / (self.A_flow * self.guess)
         self.D_e = 2.0 * self.r_channel
-        self.v = self.G_dot / rho_cool
 
-    def calc_nondim(self):
-        """ Calculate Reynolds number
+    def characterize_flow(self):
+        """Calculate important non-dim and dim flow parameters. These parameters
+        are required to determine generation per fuel channel.
+            v: flow velocity [m/s]
+            Re: Reynolds number [-]
+            Pr: Prandtl number [-]
+            Nu: Nusselt number [-]
+            f: friction factor [-]
+            h_bar: heat transfer coefficient [W/m^2-K]
         """
+        # calculate flow velocity from mass flux
+        self.v = self.G_dot / rho_cool
+        # calculate Reynolds Number
         self.Re = rho_cool * self.v * self.D_e / mu
+        # calculate Prandtl number
         self.Pr = Cp_cool * mu / k_cool
         # nusselt correlation is Eq (9-22) from El-Wakil Nuclear Heat Transport
         self.Nu = 0.023*math.pow(self.Re,0.8)*math.pow(self.Pr, 0.4)
-    
-    def get_h_bar(self):
-        """Calculate average heat transfer coefficient.
-        """
+        # El Wakil (9-4)
+        self.f = 0.184 / math.pow(self.Re, 0.2)
+        # heat transfer coefficient 
         self.h_bar = self.Nu * k_cool / self.D_e
 
     def get_q_per_channel(self):
-        """Calculate heat transfer from fuel element. Convert q_bar max from
-        cylindrical geometry to hexagonal geometry. Calculate number of required
-        flow channels.
+        """Calculate achievable average volumetric generation:
+        This function uses previously set geometry and calculated flow
+        parameters to determine the maximum-achievable volumetric generation
+        for each fuel channel. Calculates number of fuel channels required
+        for desired thermal output.
+            R_fuel: resistance term (conduction in the fuel) [W/K]
+            R_clad: resistance term (conduction in the clad) [W/K]
+            R_conv: resistance term (convection to the fluid) [W/K]
+            R_tot: total resistance to HT [W/K]
+            q_per_channel: total generation in fuel channel [W]
+            q_bar: axially-averaged volumetric generation in fuel [W]
+            N_channels: required channels for desired Q [-]
         """
         r_i = self.r_channel + self.c
         r_o = self.pitch / math.sqrt(3)
        
         # El Wakil (9-62) calculates max q''' at axial centerline
         self.R_fuel = (r_o**2 / (4*k_fuel)) * ((r_i/r_o)**2 - 2*math.log(r_i/r_o) - 1)
-        self.R_clad = (r_o/2)**2 *\
-        (1-(r_i/r_o)**2)*(math.log(r_i/(r_i-self.c))/k_clad)
-        self.R_conv = (r_o/2)**2 *\
-        (1-(r_i/r_o)**2)*(1/(self.h_bar*(r_i - self.c)))
+        
+        self.R_clad = (r_o**2)/2 * (1-(r_i/r_o)**2)*\
+        math.log(r_i/(r_i-self.c)) / k_clad
+        
+        self.R_conv = (r_o**2)/2 * (1-(r_i/r_o)**2)*\
+        1 / (self.h_bar*(r_i - self.c))
+        
         self.R_tot = self.R_fuel + self.R_clad + self.R_conv
         
         # calculate centerline volumetric generation
@@ -108,54 +129,52 @@ class FlowIteration:
         
         # consider axial flux variation
         self.q_per_channel = 2 * q_trip_max * self.A_fuel * self.L / math.pi
-
-    def get_q_bar(self):
-        
-        self.get_q_per_channel()
-        # calculate required number of channels
+        self.q_bar = self.q_per_channel / (self.A_fuel * self.L)
         self.N_channels = Q_therm / self.q_per_channel
-        # calculate total fuel volume and q_bar
-        self.Vol_fuel = self.A_fuel * self.L * self.N_channels
-        self.q_bar = Q_therm / self.Vol_fuel
-        
+
     def calc_dp(self):
-        """Calculate pressure drop subchannel
+        """Calculate pressure drop in the subchannel.
         """
-        # El Wakil (9-4)
-        f = 0.184 / math.pow(self.Re, 0.2)
         # Darcy pressure drop (El-Wakil 9-3)
-        self.dp = f * self.L * rho_cool * self.v * self.v / (2*self.D_e)
-    
-    def get_dp_constrained_Nchannels(self):
+        self.dp = self.f * self.L * rho_cool * self.v * self.v / (2*self.D_e)
         
-        v_req = 2*self.D_e * self.dp / (0.184 * math.pow(self.Re, -0.2)\
-                                      * self.L * rho_cool)
-        required_G_dot = v_req / rho_cool
-        
-        return m_dot / (self.A_flow * required_G_dot)
-    
-    def check_new_channels(self, req_channels):
-        """Chec the validity of new channel configuration to meet dP
-        constraints.
+    def check_dp(self):
+        """Check for pressure constraint.
         """
+        self.calc_dp()
+        
+        if self.dp > dp_allowed:
+            req_N = self.get_dp_constrained_Nchannels()
+            self.N_channels = math.ceil(req_N) 
+            self.guess = self.N_channels
+        self.set_geom()
+        self.characterize_flow()
+        self.calc_dp()
 
-        self.guess = req_channels
-        self.mass_flux_channel()
-        self.calc_nondim()
-        self.get_h_bar()
-        self.get_q_per_channel()
 
-        if self.q_per_channel * req_channels >= Q_therm:
-            return True
-        else:
-            return False
-
+    def get_dp_constrained_Nchannels(self):
+        """Set the N_channels based on the allowable dP
+        """
+        v_req = math.sqrt(2*self.D_e * dp_allowed / (self.f * self.L * rho_cool))
+        req_channels = m_dot / (self.A_flow * rho_cool * v_req)
+        
+        return req_channels
+    
     def calc_aspect_ratio(self):
+        """Estimate the core aspect ratio (L/D)
+        """
         total_area = (self.A_fuel + self.A_flow) * self.N_channels
         equivalent_radius = math.sqrt(total_area / math.pi) 
         self.AR = self.L / (2*equivalent_radius)
-
+    
     def Iterate(self):
+        """Perform single 1D heat flow calculation.
+        """
+        self.set_geom()
+        self.characterize_flow()
+        self.get_q_per_channel()
+        
+    def oneD_calc(self):
         """Perform Flow Calc Iteration
         """
         res = minimize_scalar(_error, bounds=(1, 1e9), args=(self),
@@ -166,6 +185,7 @@ class FlowIteration:
     def calc_reactor_mass(self):
         """Based on results of the iteration, calculate the reactor mass.
         """
+        self.Vol_fuel = self.A_fuel * self.L * self.N_channels
         self.mass = self.Vol_fuel * rho_fuel
 
 class ParametricSweep():
