@@ -27,17 +27,12 @@ class FlowIteration:
     """ Perform 1D Flow Analysis
 
     This class contains the required methods to perform a 1D coupled heat
-    transfer/fluid flow problem on a CERMET Flow Channel. Upon instantiation,
-    the user provides:
-        flow_radius (float): radius of the coolant flow channels [m]
-        PD (float): fuel cell pitch / coolant channel diameter [-]
-        c (float): channel cladding thickness [m]
-        L (float): fuel length [m]
-        guess (int): initial number of flow channels [-]
+    transfer/fluid flow problem on a CERMET Flow Channel.
     """
     # geometric attributes
-    Vol_fuel = 0; AR = 0
-    guess = 0; N_channels = 0; error = 0
+    r_channel = 0; c = 0; pitch = 0; L = 0; 
+    Vol_fuel = 0; AR = 0; mass = 0; A_fuel = 0; A_flow = 0;
+    guess = 0; N_channels = 0;
     # temperature drop
     dt = T_centerline - T_bulk
     # heat transfer and non-dimensional coefficients
@@ -46,10 +41,13 @@ class FlowIteration:
     # flow parameters
     G_dot = 0; D_e = 0; v = 0; dp = 0
     # heat generation
-    q_bar = 0; q_per_channel = 0; q_therm_check = 0
-    
+    q_bar = 0; q_per_channel = 0;
+
     def __init__(self, diameter, PD, c, L):
         """Initialize the flow iteration class.
+        
+        Initialized Attributes:
+        --------------------
             r_channel: radius of coolant channel [m]
             c: cladding thickness [m]
             pitch: fuel thickness (minor axis of hexagon) [m]
@@ -62,6 +60,9 @@ class FlowIteration:
 
     def set_geom(self):
         """Setup the problem geometry.
+        
+        Modified Attributes:
+        --------------------
             A_flow: flow area per fuel channel.
             A_fuel: fuel area per fuel channel.
             G_dot: mass flux through all flow channels
@@ -76,6 +77,9 @@ class FlowIteration:
     def characterize_flow(self):
         """Calculate important non-dim and dim flow parameters. These parameters
         are required to determine generation per fuel channel.
+        
+        Modified Attributes:
+        --------------------
             v: flow velocity [m/s]
             Re: Reynolds number [-]
             Pr: Prandtl number [-]
@@ -91,17 +95,20 @@ class FlowIteration:
         self.Pr = Cp_cool * mu / k_cool
         # nusselt correlation is Eq (9-22) from El-Wakil Nuclear Heat Transport
         self.Nu = 0.023*math.pow(self.Re,0.8)*math.pow(self.Pr, 0.4)
-        # El Wakil (9-4)
+        # friction factor for pressure drop correlation El Wakil (9-4)
         self.f = 0.184 / math.pow(self.Re, 0.2)
         # heat transfer coefficient 
         self.h_bar = self.Nu * k_cool / self.D_e
 
     def get_q_per_channel(self):
         """Calculate achievable average volumetric generation:
-        This function uses previously set geometry and calculated flow
+        This method uses previously set geometry and calculated flow
         parameters to determine the maximum-achievable volumetric generation
         for each fuel channel. Calculates number of fuel channels required
         for desired thermal output.
+        
+        Modified Attributes:
+        --------------------
             R_fuel: resistance term (conduction in the fuel) [W/K]
             R_clad: resistance term (conduction in the clad) [W/K]
             R_conv: resistance term (convection to the fluid) [W/K]
@@ -130,30 +137,55 @@ class FlowIteration:
         # consider axial flux variation
         self.q_per_channel = 2 * q_trip_max * self.A_fuel * self.L / math.pi
         self.q_bar = self.q_per_channel / (self.A_fuel * self.L)
-        self.N_channels = Q_therm / self.q_per_channel
+        self.N_channels = math.ceil(Q_therm / self.q_per_channel)
 
     def calc_dp(self):
-        """Calculate pressure drop in the subchannel.
+        """Calculate axial pressure drop across the reactor core.
+        
+        Modified Attributes:
+        --------------------
+            dp: core pressure drop [Pa]
         """
         # Darcy pressure drop (El-Wakil 9-3)
         self.dp = self.f * self.L * rho_cool * self.v * self.v / (2*self.D_e)
         
     def check_dp(self):
-        """Check for pressure constraint.
-        """
-        self.calc_dp()
+        """Check for pressure constraint. This method calls calc_dp() to get
+        the pressure drop in the current condition. It checks the dp against the
+        power cycle-constrained allowable dp. If the pressure is too high, it
+        adjusts N_channels to the min N_channels that satisfies the dp
+        constraint.
         
+        Modified Attributes:
+        --------------------
+            guess: guess number of fuel channels [-]
+            N_channels: number of fuel channels [-]
+        """
+
+        self.calc_dp()
         if self.dp > dp_allowed:
             req_N = self.get_dp_constrained_Nchannels()
+            # set N_channels and guess
             self.guess = req_N
+            self.N_channels = req_N
             # set up new geometry and flow conditions 
-            self.Iterate()
-            self.N_channels = math.ceil(self.guess)
+            self.set_geom()
+            self.characterize_flow()
+            # recursive call to verifiy correct dp; accounting for f = f(Re)
             self.check_dp()
         
 
     def get_dp_constrained_Nchannels(self):
-        """Set the N_channels based on the allowable dP
+        """Set the N_channels based on the allowable dP. This method
+        calculates the required number of channels to meet the pressure drop
+        constraint (set by the power cycle).
+        
+        Arguments:
+        ----------
+            self: FlowIteration object [-]
+        Returns:
+        --------
+            req_channels: Min N_channels required to meet dp constraint [-].
         """
         v_req = math.sqrt(2*self.D_e * dp_allowed / (self.f * self.L * rho_cool))
         req_channels = math.ceil(m_dot / (self.A_flow * rho_cool * v_req))
@@ -161,29 +193,38 @@ class FlowIteration:
         return req_channels
     
     def calc_aspect_ratio(self):
-        """Estimate the core aspect ratio (L/D)
+        """Estimate the core aspect ratio (L/D).
+        
+        Modified Attributes:
+        --------------------
+            AR: core aspect ratio [-]
         """
         total_area = (self.A_fuel + self.A_flow) * self.N_channels
         equivalent_radius = math.sqrt(total_area / math.pi) 
         self.AR = self.L / (2*equivalent_radius)
     
     def Iterate(self):
-        """Perform single 1D heat flow calculation.
+        """Perform single 1D heat flow calculation. This method calls the
+        required methods to perform one iteration of the calculation.
         """
         self.set_geom()
         self.characterize_flow()
         self.get_q_per_channel()
         
     def oneD_calc(self):
-        """Perform Flow Calc Iteration
+        """Perform Flow Calc Iteration. Using scipy's optimization package, call
+        the _error function until the problem is solved to a set tolerance.
         """
         res = minimize_scalar(_error, bounds=(1, 1e9), args=(self),
-        method='Bounded')
-        self.calc_dp()
-        self.N_channels = math.ceil(self.N_channels)
+        method='Bounded', options={'xatol':1e-5})
 
     def calc_reactor_mass(self):
         """Based on results of the iteration, calculate the reactor mass.
+        
+        Modified Attributes:
+        --------------------
+            Vol_fuel: total fuel volume [m^3]
+            mass: total fuel mass[kg]
         """
         self.Vol_fuel = self.A_fuel * self.L * self.N_channels
         self.mass = self.Vol_fuel * rho_fuel

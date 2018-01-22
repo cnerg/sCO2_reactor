@@ -38,7 +38,6 @@ T_centerline = 1847.5 # centerline fuel temperature [K]
 P_in = 1.79064e7 # inlet pressure [Pa]
 P_out = 1.74229e7 # outlet pressure [Pa]
 dp_allowed = abs(P_out - P_in)
-print(dp_allowed)
 # conservative estimate for thermal conductivity at fuel centerline temperature.
 k_fuel = fuel_cond(T_centerline)
 # mixed density for CERMET fuel
