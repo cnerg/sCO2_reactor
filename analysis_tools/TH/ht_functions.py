@@ -145,18 +145,18 @@ class FlowIteration:
         
         if self.dp > dp_allowed:
             req_N = self.get_dp_constrained_Nchannels()
-            self.N_channels = math.ceil(req_N) 
-            self.guess = self.N_channels
-        self.set_geom()
-        self.characterize_flow()
-        self.calc_dp()
-
+            self.guess = req_N
+            # set up new geometry and flow conditions 
+            self.Iterate()
+            self.N_channels = math.ceil(self.guess)
+            self.check_dp()
+        
 
     def get_dp_constrained_Nchannels(self):
         """Set the N_channels based on the allowable dP
         """
         v_req = math.sqrt(2*self.D_e * dp_allowed / (self.f * self.L * rho_cool))
-        req_channels = m_dot / (self.A_flow * rho_cool * v_req)
+        req_channels = math.ceil(m_dot / (self.A_flow * rho_cool * v_req))
         
         return req_channels
     
