@@ -5,6 +5,20 @@ import sys
 # Import TH functions
 from ht_functions import FlowIteration, ParametricSweep
 
+def oneD_flow_modeling(analyze_flow):
+    """Conduct oneD_flow_modeling.
+
+    Arguments:
+    ----------
+        analyze_flow: (class) FlowIteration object. Contains attributes and
+        methods required to perform an N_channels calculation for a single
+        geometry (r, PD, L, c)
+    """
+    analyze_flow.oneD_calc()
+    analyze_flow.check_dp()
+    analyze_flow.calc_reactor_mass()
+    analyze_flow.calc_aspect_ratio()
+
         
 def sweep_configs(D, PD, z, c, N, key, AR_select, save=False):
     """Perform parametric sweep through pin cell geometric space.
@@ -25,8 +39,7 @@ def sweep_configs(D, PD, z, c, N, key, AR_select, save=False):
     for i in range(N):
         for j in range(N):
             flowdata = FlowIteration(D[i,j], PD[i,j], c, z)
-            flowdata.Iterate()
-            flowdata.calc_reactor_mass()
+            oneD_flow_modeling(flowdata)
             sweepresults.save_iteration(flowdata, i, j)
     
     sweepresults.get_min_data()

@@ -63,15 +63,13 @@ class FlowIteration:
         
         Modified Attributes:
         --------------------
-            A_flow: flow area per fuel channel.
-            A_fuel: fuel area per fuel channel.
-            G_dot: mass flux through all flow channels
-            D_e: equivalent flow diameter
+            A_flow: flow area per fuel channel. [m^2]
+            A_fuel: fuel area per fuel channel. [m^2]
+            D_e: equivalent flow diameter [m]
         """
         self.A_flow = self.r_channel ** 2 * math.pi
         self.A_fuel = math.sqrt(3)*self.pitch**2 / 2.0 -\
                       (self.r_channel + self.c) ** 2 * math.pi
-        self.G_dot = m_dot / (self.A_flow * self.guess)
         self.D_e = 2.0 * self.r_channel
 
     def characterize_flow(self):
@@ -80,6 +78,7 @@ class FlowIteration:
         
         Modified Attributes:
         --------------------
+            G_dot: mass flux through all flow channels [kg/m^2-s]
             v: flow velocity [m/s]
             Re: Reynolds number [-]
             Pr: Prandtl number [-]
@@ -87,6 +86,8 @@ class FlowIteration:
             f: friction factor [-]
             h_bar: heat transfer coefficient [W/m^2-K]
         """
+        # calculate mass flux
+        self.G_dot = m_dot / (self.A_flow * self.guess)
         # calculate flow velocity from mass flux
         self.v = self.G_dot / rho_cool
         # calculate Reynolds Number
@@ -137,7 +138,17 @@ class FlowIteration:
         # consider axial flux variation
         self.q_per_channel = 2 * q_trip_max * self.A_fuel * self.L / math.pi
         self.q_bar = self.q_per_channel / (self.A_fuel * self.L)
-        self.N_channels = math.ceil(Q_therm / self.q_per_channel)
+
+    def set_N_channels(self):
+        """Calculate the required number of fuel channels given the maximum heat
+        generation per channel.
+            
+            Modified Attributes:
+            --------------------
+                N_channels: minium required fuel channels to meet thermal power
+                requirements [-]
+        """
+        self.N_channels = Q_therm / self.q_per_channel
 
     def calc_dp(self):
         """Calculate axial pressure drop across the reactor core.
@@ -210,6 +221,7 @@ class FlowIteration:
         self.set_geom()
         self.characterize_flow()
         self.get_q_per_channel()
+        self.set_N_channels()
         
     def oneD_calc(self):
         """Perform Flow Calc Iteration. Using scipy's optimization package, call
@@ -217,6 +229,13 @@ class FlowIteration:
         """
         res = minimize_scalar(_error, bounds=(1, 1e9), args=(self),
         method='Bounded', options={'xatol':1e-5})
+        # round up to nearest N_channel
+        self.guess = math.ceil(self.guess)
+        self.N_channels = self.guess
+        # use rounded N_channel to calculate flow characteristics
+        self.set_geom()
+        self.characterize_flow()
+        self.get_q_per_channel()
 
     def calc_reactor_mass(self):
         """Based on results of the iteration, calculate the reactor mass.
