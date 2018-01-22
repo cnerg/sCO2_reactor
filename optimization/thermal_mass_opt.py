@@ -1,3 +1,12 @@
+""" Thermal-Hydraulic Optimization Module.
+This module contains functions to perform a parametric sweep of reactor
+geometric parameters. It calculates fuel mass and flow characteristics for each
+set of valid geometric parameters.
+
+Functions contained in this module:
+    *oneD_flow_modeling
+    *sweep_configs
+"""
 # Other imports
 import numpy as np
 import argparse
@@ -13,15 +22,19 @@ def oneD_flow_modeling(analyze_flow):
         analyze_flow: (class) FlowIteration object. Contains attributes and
         methods required to perform an N_channels calculation for a single
         geometry (r, PD, L, c)
+
+    Returns:
+    --------
+        None
     """
     analyze_flow.oneD_calc()
     analyze_flow.check_dp()
     analyze_flow.calc_reactor_mass()
     analyze_flow.calc_aspect_ratio()
-
         
 def sweep_configs(D, PD, z, c, N, key, AR_select, save=False):
     """Perform parametric sweep through pin cell geometric space.
+
     """
     # calculate appropriate step sizes given range
     D_step = (D[1] - D[0]) / N

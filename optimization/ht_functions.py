@@ -10,12 +10,21 @@ import numpy as np
 import operator
 import sys
 from scipy.optimize import minimize, minimize_scalar
+# Import physical constants
 from physical_constants import *
-import matplotlib.pyplot as plt
     
 def _error(guess, flowiteration):
-    """ Calculate squared error between guess value and N channels for all
+    """Calculate squared error between guess value and N channels for all
     three guess values.
+
+    Arguments:
+    ----------
+        flowiteration: class containing TH methods and attributes
+    
+    Returns:
+    --------
+        error: difference between guess fuel channels and calculated required
+        N_channels (float)
     """
     flowiteration.guess = guess
     flowiteration.Iterate()
@@ -71,7 +80,7 @@ class FlowIteration:
         self.A_fuel = math.sqrt(3)*self.pitch**2 / 2.0 -\
                       (self.r_channel + self.c) ** 2 * math.pi
         self.D_e = 2.0 * self.r_channel
-
+    
     def characterize_flow(self):
         """Calculate important non-dim and dim flow parameters. These parameters
         are required to determine generation per fuel channel.
