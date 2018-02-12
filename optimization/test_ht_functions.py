@@ -1,7 +1,7 @@
 import math
 from physical_constants import *
 import pytest
-from ht_functions import FlowIteration
+from ht_functions import Flow
 
 # parameters for test case
 diameter = 0.01
@@ -14,7 +14,7 @@ N = 6
 def test_set_geom():
     """Test geometry initialization.
     """
-    test = FlowIteration(diameter, PD, c, L)
+    test = Flow(diameter, PD, c, L)
     test.guess = N
     # expected values
     exp_De = diameter
@@ -31,7 +31,7 @@ def test_set_geom():
 def test_characterize_flow():
     """Test flow characterization.
     """
-    test = FlowIteration(diameter, PD, c, L)
+    test = Flow(diameter, PD, c, L)
     test.guess = N
     # get geom
     test.set_geom()
@@ -56,7 +56,7 @@ def test_characterize_flow():
 def test_q():
     """Test q_per_channel calculation.
     """
-    test = FlowIteration(diameter, PD, c, L)
+    test = Flow(diameter, PD, c, L)
     test.guess = N
     # get geom and flow conditions
     test.set_geom()
@@ -70,7 +70,7 @@ def test_q():
 def test_dp():
     """Test subchannel dp calculation.
     """
-    test = FlowIteration(diameter, PD, c, L)
+    test = Flow(diameter, PD, c, L)
     test.guess = N
     test.set_geom()
     test.characterize_flow()
