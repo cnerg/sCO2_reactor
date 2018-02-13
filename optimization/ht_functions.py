@@ -170,7 +170,7 @@ class Flow:
             N_channels: required channels for desired Q [-]
         """
 
-        # El Wakil (9-62) calculates max q''' at axial centerline
+        # El Wakil (6-62) calculates max q''' at axial centerline
         self.R_fuel = (self.r_o**2 / (4*pc.k_fuel)) *\
                       ((self.r_i/self.r_o)**2 - 2*math.log(self.r_i/self.r_o) - 1)
 
@@ -222,7 +222,6 @@ class Flow:
             self.guess_channels = self.get_dp_constrained_Nchannels()
             self.N_channels = self.guess_channels
             self.characterize_flow()
-            # recursive call to verifiy correct dp; accounting for f = f(Re)
             self.calc_dp()
 
     def get_dp_constrained_Nchannels(self):
@@ -310,11 +309,10 @@ class ParametricSweep():
     # dict to save data for plotting
     data = {k: [] for k in titles.keys()}
 
-    def __init__(self, D, PD, N, select_AR):
+    def __init__(self, D, PD, N):
         self.D = D
         self.PD = PD
         self.N = N
-        self.select_AR = select_AR
         for key in self.data:
             self.data[key] = np.empty([N, N])
 

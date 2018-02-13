@@ -7,7 +7,7 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter, ScalarFormatter
 import numpy as np
 
 
-def plot(results, D, PD, key):
+def plot(results, key):
     """Produce surface plot of the flow results as function of PD and coolant
     channel diameter.
     """
@@ -15,7 +15,7 @@ def plot(results, D, PD, key):
     M = results.data[key]
     fig = plt.figure()
     ax = fig.gca(projection='3d')
-    surf = ax.plot_surface(D, PD, M,
+    surf = ax.plot_surface(results.D, results.PD, M,
                            cmap=cm.viridis, linewidth=0,
                            vmin=0, vmax=np.nanmax(M),
                            antialiased=False)
