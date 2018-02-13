@@ -35,7 +35,7 @@ def oneD_flow_modeling(analyze_flow):
     analyze_flow.calc_aspect_ratio()
 
 
-def sweep_configs(diams, pds, z, c, N, key, AR_select, save=False):
+def sweep_configs(diams, pds, z, c, N):
     """Perform parametric sweep through pin cell geometric space.
 
     """
@@ -50,7 +50,7 @@ def sweep_configs(diams, pds, z, c, N, key, AR_select, save=False):
     D_mesh, PD_mesh = np.meshgrid(D_array, PD_array)
 
     # initialize object to save sweep results
-    sweepresults = ParametricSweep(D_mesh, PD_mesh, N, AR_select)
+    sweepresults = ParametricSweep(D_mesh, PD_mesh, N)
     # sweep through parameter space, calculate min mass
     for i in range(N):
         for j in range(N):
@@ -60,14 +60,8 @@ def sweep_configs(diams, pds, z, c, N, key, AR_select, save=False):
 
     sweepresults.get_min_data()
     sweepresults.disp_min_mass()
-    plt = plot(sweepresults, D_mesh, PD_mesh, key)
-
-    if save == True:
-        savename = key + '.png'
-        plt.savefig(savename, dpi=500)
-
-    plt.show()
-
+    
+    return sweepresults
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -78,10 +72,10 @@ if __name__ == '__main__':
     parser.add_argument("z", type=float, help="axial height [m]")
     parser.add_argument("clad_t", type=float, help="cladding thickness [m]")
     parser.add_argument("steps", type=int, help="parameter resolution")
-    parser.add_argument("plotkey", type=str,
+    parser.add_argument("-plotkey", type=str,
                         help="parameter parameter to plot")
-    parser.add_argument("--AR", action='store_true', dest='AR_select',
-                        default=False, help="--selects data corresponding to valid AR's")
+    parser.add_argument("-i", action='store_true', dest='show',
+                        default=False, help="--display plot")
 
     args = parser.parse_args()
 
@@ -89,8 +83,15 @@ if __name__ == '__main__':
         print("Error: Min fuel pitch must be greater than max coolant channel" +\
               "diameter! Set min PD > 1!")
         sys.exit()
+    
 
-    sweep_configs((args.d_lower, args.d_upper),
-                  (args.pd_lower, args.pd_upper),
-                  args.z, args.clad_t, args.steps,
-                  args.plotkey, args.AR_select, True)
+    sweepresults = sweep_configs((args.d_lower, args.d_upper),
+                                 (args.pd_lower, args.pd_upper),
+                                  args.z, args.clad_t, args.steps)
+    
+    if args.plotkey:
+        plt = plot(sweepresults, args.plotkey)
+        savename = args.plotkey + '.png'
+        plt.savefig(savename, dpi=500)
+        if args.show:
+            plt.show()
