@@ -10,7 +10,7 @@ The following functions are contained in this module:
 # import required modules
 import argparse
 # import Flow class
-from ht_functions import Flow, flow_calc
+from ht_functions import Flow, min_error
 
 
 def oneD_flow_modeling(diameter, PD, L, c):
@@ -29,7 +29,7 @@ def oneD_flow_modeling(diameter, PD, L, c):
         None
     """
     test = Flow(diameter, PD, c, L)
-    flow_calc(test)
+    min_error(test)
     test.adjust_dp()
     test.calc_reactor_mass()
     test.calc_aspect_ratio()

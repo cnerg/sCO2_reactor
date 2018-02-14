@@ -12,7 +12,7 @@ import numpy as np
 import argparse
 import sys
 # Import TH functions
-from ht_functions import Flow, ParametricSweep, flow_calc
+from ht_functions import Flow, ParametricSweep, min_error
 from plot import plot
 
 
@@ -29,7 +29,7 @@ def oneD_flow_modeling(analyze_flow):
     --------
         None
     """
-    flow_calc(analyze_flow)
+    min_error(analyze_flow)
     analyze_flow.adjust_dp()
     analyze_flow.calc_reactor_mass()
     analyze_flow.calc_aspect_ratio()

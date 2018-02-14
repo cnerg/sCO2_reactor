@@ -25,9 +25,9 @@ def _error(guess, flowiteration):
     return flowiteration.compute_from_guess(guess)
 
 
-def flow_calc(flow):
-    """Perform Flow Calc Iteration. Using scipy's optimization package, call
-    the _error function until the problem is solved to a set tolerance.
+def min_error(flow):
+    """Perform error minimization. Using scipy's optimization package, call
+    the _error function until the error is minimized to a set tolerance.
 
     Arguments:
     ----------
