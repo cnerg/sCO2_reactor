@@ -10,38 +10,9 @@ The following functions are contained in this module:
 # import required modules
 import argparse
 # import Flow class
-from ht_functions import Flow, min_error
+from ht_functions import Flow, oned_flow_modeling
 
-
-def oneD_flow_modeling(diameter, PD, L, c):
-    """1D calculation.
-    This function produces a valid, coolable reactor design given the following
-    arguments:
-
-    Arguments:
-    ----------
-        diameter: coolant channel diameter [m]
-        PD: fuel pitch to cool. D ratio [-]
-        L: reactor length [m]
-        c: clad thickness [m]
-    Returns:
-    --------
-        None
-    """
-    test = Flow(diameter, PD, c, L)
-    min_error(test)
-    test.adjust_dp()
-    test.calc_reactor_mass()
-    test.calc_aspect_ratio()
-
-    # collect and print the results
-    data = test.__dict__
-
-    data = {str(round(data[key], 3)) for key in sorted(data.keys())}
-    print(data)
-
-
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("diameter", type=float,
                         help="coolant channel diameter [m]")
@@ -57,5 +28,12 @@ if __name__ == '__main__':
         diameter!, set PD > 1")
         sys.exit()
     # perform calculation
-    oneD_flow_modeling(args.diameter, args.PD, args.core_z,
-                       args.clad_t)
+    test = Flow(args.diameter, args.PD, args.clad_t, args.core_z)
+    oned_flow_modeling(test)
+    # print results
+    data = test.__dict__
+    data = {str(round(data[key], 3)) for key in sorted(data.keys())}
+    print(data)
+
+if __name__ == '__main__':
+    main()

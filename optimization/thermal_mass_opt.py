@@ -12,32 +12,13 @@ import numpy as np
 import argparse
 import sys
 # Import TH functions
-from ht_functions import Flow, ParametricSweep, min_error
+from ht_functions import Flow, ParametricSweep, oned_flow_modeling
 from plot import plot
 
 
-def oneD_flow_modeling(analyze_flow):
-    """Conduct oneD_flow_modeling.
-
-    Arguments:
-    ----------
-        analyze_flow: (class) Flow object. Contains attributes and
-        methods required to perform an N_channels calculation for a single
-        geometry (r, PD, L, c)
-
-    Returns:
-    --------
-        None
-    """
-    min_error(analyze_flow)
-    analyze_flow.adjust_dp()
-    analyze_flow.calc_reactor_mass()
-    analyze_flow.calc_aspect_ratio()
-
-
-def sweep_configs(diams, pds, z, c, N):
-    """Perform parametric sweep through pin cell geometric space.
-
+def sweep_geometric_configs(diams, pds, z, c, N):
+    """Perform parametric sweep through pin cell geometric space. Calculate the
+    minimum required mass for TH purposes at each point.
     """
     # calculate appropriate step sizes given range
     D_step = (diams[1] - diams[0]) / N
@@ -55,10 +36,10 @@ def sweep_configs(diams, pds, z, c, N):
     for i in range(N):
         for j in range(N):
             flowdata = Flow(D_mesh[i, j], PD_mesh[i, j], c, z)
-            oneD_flow_modeling(flowdata)
+            oned_flow_modeling(flowdata)
             sweepresults.save_iteration(flowdata, i, j)
 
-    sweepresults.get_min_data()
+    sweepresults.get_min_mass()
     sweepresults.disp_min_mass()
     
     return sweepresults

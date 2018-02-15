@@ -7,8 +7,27 @@ from scipy.optimize import minimize, minimize_scalar
 # Import physical constants
 import physical_constants as pc
 
+def oned_flow_modeling(analyze_flow):
+    """1D calculation.
+    This function produces a valid, coolable reactor design given the following
+    arguments:
 
-def _error(guess, flowiteration):
+    Arguments:
+    ----------
+        diameter: coolant channel diameter [m]
+        PD: fuel pitch to cool. D ratio [-]
+        L: reactor length [m]
+        c: clad thickness [m]
+    Returns:
+    --------
+        None
+    """
+    find_n_channels(analyze_flow)
+    analyze_flow.adjust_dp()
+    analyze_flow.calc_reactor_mass()
+    analyze_flow.calc_aspect_ratio()
+
+def _calc_n_channels_error(guess, flowiteration):
     """Calculate squared error between guess value and N channels for all
     three guess values.
 
@@ -22,10 +41,10 @@ def _error(guess, flowiteration):
         error: difference between guess fuel channels and calculated required
         N_channels (float)
     """
-    return flowiteration.compute_from_guess(guess)
+    return flowiteration.compute_channels_from_guess(guess)
 
 
-def min_error(flow):
+def find_n_channels(flow):
     """Perform error minimization. Using scipy's optimization package, call
     the _error function until the error is minimized to a set tolerance.
 
@@ -39,7 +58,7 @@ def min_error(flow):
         none
 
     """
-    res = minimize_scalar(_error, bounds=(1, 1e9), args=(flow),
+    res = minimize_scalar(_calc_n_channels_error, bounds=(1, 1e9), args=(flow),
                           method='Bounded', options={'xatol': 1e-3})
 
 
@@ -254,7 +273,7 @@ class Flow:
         equivalent_radius = math.sqrt(total_area / math.pi)
         self.AR = self.L / (2*equivalent_radius)
 
-    def compute_from_guess(self, inp_guess):
+    def compute_channels_from_guess(self, inp_guess):
         """Perform single 1D heat flow calculation. This method calls the
         required methods to perform one iteration of the calculation.
             
@@ -322,12 +341,10 @@ class ParametricSweep():
         for key in self.data.keys():
             self.data[key][i][j] = iteration.__dict__[key]
 
-    def get_min_data(self):
+    def get_min_mass(self):
         """ After the parametric sweep is complete, find the minimum calculated
-        fuel mass. Save the flowdata for that point, display the PD, D and mass 
-        for the optimized configuration.
+        fuel mass.
         """
-
         # search the results for minimum-mass configuration
         self.min_idx, self.min_jdx = np.unravel_index(
             np.nanargmin(self.data['mass']), self.data['mass'].shape)
