@@ -7,6 +7,7 @@ from scipy.optimize import minimize, minimize_scalar
 # Import physical constants
 import physical_constants as pc
 
+
 def oned_flow_modeling(analyze_flow):
     """1D calculation.
     This function produces a valid, coolable reactor design given the following
@@ -26,6 +27,7 @@ def oned_flow_modeling(analyze_flow):
     analyze_flow.adjust_dp()
     analyze_flow.calc_reactor_mass()
     analyze_flow.calc_aspect_ratio()
+
 
 def _calc_n_channels_error(guess, flowiteration):
     """Calculate squared error between guess value and N channels for all
@@ -74,36 +76,36 @@ class Flow:
 
     # geometric attributes
     r_channel = 0
-    c = 0 # clad thickness
-    pitch = 0 # fuel pitch (center to side of hex)
-    L = 0 # reactor length
-    Vol_fuel = 0 # fuel volume
-    mass = 0 # fuel mass
-    A_fuel = 0 # fuel cross-sectional area
-    A_flow = 0 # flow cross-sectional area
-    guess_channels = 0 # guess value to number of fuel channels
-    N_channels = 0 # number of required fuel channels for given flow conditions
-    
+    c = 0  # clad thickness
+    pitch = 0  # fuel pitch (center to side of hex)
+    L = 0  # reactor length
+    Vol_fuel = 0  # fuel volume
+    mass = 0  # fuel mass
+    A_fuel = 0  # fuel cross-sectional area
+    A_flow = 0  # flow cross-sectional area
+    guess_channels = 0  # guess value to number of fuel channels
+    N_channels = 0  # number of required fuel channels for given flow conditions
+
     # flow parameters
-    Re = 0 # Reynold's number
-    G_dot = 0 # mass flux
-    D_e = 0 # hydraulic diameter
-    v = 0 # flow velocity
-    dp = 0 # channel pressure drop
-    
+    Re = 0  # Reynold's number
+    G_dot = 0  # mass flux
+    D_e = 0  # hydraulic diameter
+    v = 0  # flow velocity
+    dp = 0  # channel pressure drop
+
     # heat transfer attributes
-    dt = pc.T_centerline - pc.T_bulk # temp. drop fuel -> coolant
-    h_bar = 0 # average heat transfer coefficient
-    Nu = 0 # Nusselt number
-    f = 0 # friction factor
-    R_fuel = 0 # resistance to conduction in fuel
-    R_clad = 0 # resistance to conduction in clad
-    R_conv = 0 # resistance to convection to cool
-    R_tot = 0 # total resistance to heat transfer
-    
+    dt = pc.T_centerline - pc.T_bulk  # temp. drop fuel -> coolant
+    h_bar = 0  # average heat transfer coefficient
+    Nu = 0  # Nusselt number
+    f = 0  # friction factor
+    R_fuel = 0  # resistance to conduction in fuel
+    R_clad = 0  # resistance to conduction in clad
+    R_conv = 0  # resistance to convection to cool
+    R_tot = 0  # total resistance to heat transfer
+
     # heat generation
-    q_bar = 0 # axially-averaged volumetric generation
-    q_per_channel = 0 # generation per fuel channel
+    q_bar = 0  # axially-averaged volumetric generation
+    q_per_channel = 0  # generation per fuel channel
 
     def __init__(self, diameter, PD, c, L):
         """Initialize the flow iteration class.
@@ -195,10 +197,10 @@ class Flow:
                       ((self.r_i/self.r_o)**2 - 2*math.log(self.r_i/self.r_o) - 1)
 
         self.R_clad = (self.r_o**2)/2 * (1-(self.r_i/self.r_o)**2) *\
-                       math.log(self.r_i/(self.r_i-self.c)) / pc.k_clad
-        
+            math.log(self.r_i/(self.r_i-self.c)) / pc.k_clad
+
         self.R_conv = (self.r_o**2)/2 * (1-(self.r_i/self.r_o)**2) *\
-                       1 / (self.h_bar*(self.r_i - self.c))
+            1 / (self.h_bar*(self.r_i - self.c))
 
         self.R_tot = self.R_fuel + self.R_clad + self.R_conv
 
@@ -221,7 +223,7 @@ class Flow:
         """
         # Darcy pressure drop (El-Wakil 9-3)
         self.dp = self.f * self.L * pc.rho_cool * \
-                  self.v * self.v / (2*self.D_e)
+            self.v * self.v / (2*self.D_e)
 
     def adjust_dp(self):
         """Check for pressure constraint. This method calls calc_dp() to get
@@ -279,7 +281,7 @@ power cycle-constrained allowable dp. If the pressure is too high, it
     def compute_channels_from_guess(self, inp_guess):
         """Perform single 1D heat flow calculation. This method calls the
         required methods to perform one iteration of the calculation.
-            
+
             Arguments:
             ----------
                 inp_guess: (int) guess value for number of fuel channels
@@ -339,10 +341,10 @@ class ParametricSweep():
         """
         self.N = N
         # size of formats list
-        N_cats = len(self.titles.keys()) + 2 # add 2 for r,pd
-        self.data = np.zeros(N*N, dtype={'names' : list(self.titles.keys()) + 
-                                                   ['r', 'pd'],
-                                         'formats' : ['f8']*N_cats})
+        N_cats = len(self.titles.keys()) + 2  # add 2 for r,pd
+        self.data = np.zeros(N*N, dtype={'names': list(self.titles.keys()) +
+                                         ['r', 'pd'],
+                                         'formats': ['f8']*N_cats})
 
     def save_iteration(self, iteration, i, j, N):
         """ Save the data from each iteration of the parametric sweep. 
@@ -361,10 +363,10 @@ class ParametricSweep():
         """
         # search the results for minimum-mass configuration
         self.min_idx = list(self.data['mass']).index(min(self.data['mass']))
-        
+
         # get data for min mass config
         self.min_mass = self.data[self.min_idx]['mass']
-        
+
         # return the min_idx to get other results at minimum config
         return self.min_idx
 
