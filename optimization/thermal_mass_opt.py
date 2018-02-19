@@ -31,13 +31,13 @@ def sweep_geometric_configs(diams, pds, z, c, N):
     D_mesh, PD_mesh = np.meshgrid(D_array, PD_array)
 
     # initialize object to save sweep results
-    sweepresults = ParametricSweep(D_mesh, PD_mesh, N)
+    sweepresults = ParametricSweep(N)
     # sweep through parameter space, calculate min mass
-    for i in range(N):
-        for j in range(N):
+    for j in range(N):
+        for i in range(N):
             flowdata = Flow(D_mesh[i, j], PD_mesh[i, j], c, z)
             oned_flow_modeling(flowdata)
-            sweepresults.save_iteration(flowdata, i, j)
+            sweepresults.save_iteration(flowdata, i, j, N)
 
     sweepresults.get_min_mass()
     sweepresults.disp_min_mass()
@@ -66,9 +66,9 @@ if __name__ == '__main__':
         sys.exit()
     
 
-    sweepresults = sweep_configs((args.d_lower, args.d_upper),
-                                 (args.pd_lower, args.pd_upper),
-                                  args.z, args.clad_t, args.steps)
+    sweepresults = sweep_geometric_configs((args.d_lower, args.d_upper),
+                                           (args.pd_lower, args.pd_upper),
+                                            args.z, args.clad_t, args.steps)
     
     if args.plotkey:
         plt = plot(sweepresults, args.plotkey)

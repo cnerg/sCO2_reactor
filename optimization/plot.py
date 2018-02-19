@@ -5,6 +5,7 @@ import matplotlib.axis
 from matplotlib import cm, rc
 from matplotlib.ticker import LinearLocator, FormatStrFormatter, ScalarFormatter
 import numpy as np
+import math
 
 
 def plot(results, key):
@@ -12,10 +13,14 @@ def plot(results, key):
     channel diameter.
     """
     # get parametric sweep data
-    M = results.data[key]
+    N = int(math.sqrt(len(results.data)))
+    M = results.data[key].reshape(N, N)
+    R = results.data['r'].reshape(N, N)
+    PD = results.data['pd'].reshape(N, N)
+
     fig = plt.figure()
     ax = fig.gca(projection='3d')
-    surf = ax.plot_surface(results.D, results.PD, M,
+    surf = ax.plot_surface(R, PD, M,
                            cmap=cm.viridis, linewidth=0,
                            vmin=0, vmax=np.nanmax(M),
                            antialiased=False)

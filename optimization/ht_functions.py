@@ -115,9 +115,10 @@ class Flow:
             pitch: fuel thickness (minor axis of hexagon) [m]
             L: length of core [m]
         """
+        self.pd_ratio = PD
         self.r_channel = diameter / 2.0
         self.c = c
-        self.pitch = (self.r_channel + self.c) * PD * 2
+        self.pitch = (self.r_channel + self.c) * self.pd_ratio * 2
         self.L = L
         # set up geometry
         self.set_geom()
@@ -225,7 +226,9 @@ class Flow:
     def adjust_dp(self):
         """Check for pressure constraint. This method calls calc_dp() to get
         the pressure drop in the current condition. It checks the dp against the
-        power cycle-constrained allowable dp. If the pressure is too high, it
+                self.r = radius
+        self.PD = PD
+power cycle-constrained allowable dp. If the pressure is too high, it
         adjusts N_channels to the min N_channels that satisfies the dp
         constraint.
 
@@ -325,42 +328,55 @@ class ParametricSweep():
               'AR': ("Approximate Core Aspect Ratio", "AR [-]")
               }
 
-    # dict to save data for plotting
-    data = {k: [] for k in titles.keys()}
+    def __init__(self, N):
+        """Initialie ParametricSweep class.
 
-    def __init__(self, D, PD, N):
-        self.D = D
-        self.PD = PD
+        Initialized Attributes
+        ----------------------
+            N: (int) N^2 = number of grid points in the radius, PD mesh space.
+            data: (ndarray) structured array containing results of the
+            parametric sweep.
+        """
         self.N = N
-        for key in self.data:
-            self.data[key] = np.empty([N, N])
+        # size of formats list
+        N_cats = len(self.titles.keys()) + 2 # add 2 for r,pd
+        self.data = np.zeros(N*N, dtype={'names' : list(self.titles.keys()) + 
+                                                   ['r', 'pd'],
+                                         'formats' : ['f8']*N_cats})
 
-    def save_iteration(self, iteration, i, j):
+    def save_iteration(self, iteration, i, j, N):
         """ Save the data from each iteration of the parametric sweep. 
         """
-        for key in self.data.keys():
-            self.data[key][i][j] = iteration.__dict__[key]
+        # 2D -> 1D index
+        idx = i + j*N
+        # store r, pd
+        self.data[idx]['r'] = iteration.r_channel
+        self.data[idx]['pd'] = iteration.pd_ratio
+        for key in self.titles.keys():
+            self.data[idx][key] = iteration.__dict__[key]
 
     def get_min_mass(self):
         """ After the parametric sweep is complete, find the minimum calculated
         fuel mass.
         """
         # search the results for minimum-mass configuration
-        self.min_idx, self.min_jdx = np.unravel_index(
-            np.nanargmin(self.data['mass']), self.data['mass'].shape)
-
+        self.min_idx = list(self.data['mass']).index(min(self.data['mass']))
+        
         # get data for min mass config
-        self.min_mass = self.data['mass'][self.min_idx][self.min_jdx]
+        self.min_mass = self.data[self.min_idx]['mass']
+        
+        # return the min_idx to get other results at minimum config
+        return self.min_idx
 
     def disp_min_mass(self):
         """ Display the minimum mass configuration.
         """
         # get the optimal configuration
-        self.minD = self.D[self.min_idx][self.min_jdx]
-        self.minPD = self.PD[self.min_idx][self.min_jdx]
+        self.minD = self.data[self.min_idx]['r']
+        self.minPD = self.data[self.min_idx]['pd']
         # report the optimal configuration and it's corresponding fuel mass
         outstring = "1D Thermal Hydraulics Optimization Results:\n"
         outstring += "Min reactor mass (m = " + str(round(self.min_mass, 3))\
-            + "[kg]) " + " occurs at D = " + str(self.minD) + "[m] & PD = "\
+            + "[kg]) " + " occurs at r = " + str(self.minD) + "[m] & PD = "\
             + str(self.minPD) + "[-]."
         print(outstring)
