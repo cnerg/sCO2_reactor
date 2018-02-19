@@ -33,8 +33,8 @@ def sweep_geometric_configs(diams, pds, z, c, N):
     # initialize object to save sweep results
     sweepresults = ParametricSweep(N)
     # sweep through parameter space, calculate min mass
-    for j in range(N):
-        for i in range(N):
+    for i in range(N):
+        for j in range(N):
             flowdata = Flow(D_mesh[i, j], PD_mesh[i, j], c, z)
             oned_flow_modeling(flowdata)
             sweepresults.save_iteration(flowdata, i, j, N)
