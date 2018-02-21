@@ -70,6 +70,23 @@ class Flow:
     This class contains the required methods to perform a 1D coupled heat
     transfer/fluid flow problem on a CERMET Flow Channel.
     """
+    savedata = {'mass': ("Total Fuel Mass", "m [kg]"),
+                'Re': ("Reynolds Number", "Re [-]"),
+                'G_dot': ("Reactor Mass Flux", "G_dot [kg/m^2-s]"),
+                'N_channels': ("Number of Fuel Channels", "N Channels [-]"),
+                'Nu': ("Nusselt Number", "Nu [-]"),
+                'dp': ("Subchannel Pressure Drop", "dP [Pa]"),
+                'h_bar': ("Heat Transfer Coefficient", "h [W / m^2 - K]"),
+                'q_per_channel': ("Total Subchannel Generation", "q/channel [W]"),
+                'q_bar': ("Average Volumetric Generation", "q_bar [W/m^3]"),
+                'v': ("Flow Velocity", "v [m/s]"),
+                'R_fuel': ("Resistance to Conduction in Fuel", "R_fuel [K/W]"),
+                'R_clad': ("Resistance to Conduction in Clad", "R_clad [K/W]"),
+                'R_conv': ("Resistance to Convection", "R_conv [K/W]"),
+                'R_tot': ("Total Resistance to Heat Transfer", "R_tot [K/W]"),
+                'AR': ("Approximate Core Aspect Ratio", "AR [-]")
+               }
+
     ################################
     # UNIT SYSTEM: m, kg, J, W, Pa #
     ################################
@@ -313,22 +330,6 @@ class ParametricSweep():
     """Class to store results of parametric sweeps for 1D flow channel analysis.
 
     """
-    titles = {'mass': ("Total Fuel Mass", "m [kg]"),
-              'Re': ("Reynolds Number", "Re [-]"),
-              'G_dot': ("Reactor Mass Flux", "G_dot [kg/m^2-s]"),
-              'N_channels': ("Number of Fuel Channels", "N Channels [-]"),
-              'Nu': ("Nusselt Number", "Nu [-]"),
-              'dp': ("Subchannel Pressure Drop", "dP [Pa]"),
-              'h_bar': ("Heat Transfer Coefficient", "h [W / m^2 - K]"),
-              'q_per_channel': ("Total Subchannel Generation", "q/channel [W]"),
-              'q_bar': ("Average Volumetric Generation", "q_bar [W/m^3]"),
-              'v': ("Flow Velocity", "v [m/s]"),
-              'R_fuel': ("Resistance to Conduction in Fuel", "R_fuel [K/W]"),
-              'R_clad': ("Resistance to Conduction in Clad", "R_clad [K/W]"),
-              'R_conv': ("Resistance to Convection", "R_conv [K/W]"),
-              'R_tot': ("Total Resistance to Heat Transfer", "R_tot [K/W]"),
-              'AR': ("Approximate Core Aspect Ratio", "AR [-]")
-              }
 
     def __init__(self, N):
         """Initialie ParametricSweep class.
@@ -341,20 +342,44 @@ class ParametricSweep():
         """
         self.N = N
         # size of formats list
-        N_cats = len(self.titles.keys()) + 2  # add 2 for r,pd
-        self.data = np.zeros(N*N, dtype={'names': list(self.titles.keys()) +
+        N_cats = len(Flow.savedata.keys()) + 2  # add 2 for r,pd
+        self.data = np.zeros(N*N, dtype={'names': list(Flow.savedata.keys()) +
                                          ['r', 'pd'],
                                          'formats': ['f8']*N_cats})
 
-    def save_iteration(self, iteration, i, j, N):
+    def sweep_geometric_configs(self, diams, pds, z, c):
+        """Perform parametric sweep through pin cell geometric space. Calculate the
+        minimum required mass for TH purposes at each point.
+        """
+        # calculate appropriate step sizes given range
+        D_step = (diams[1] - diams[0]) / self.N
+        PD_step = (pds[1] - pds[0]) / self.N
+        # ranges for diameter and pitch/diameter ratio
+        D_array = np.arange(diams[0], diams[1], D_step)
+        PD_array = np.arange(pds[0], pds[1], PD_step)
+
+        # create parameter mesh
+        D_mesh, PD_mesh = np.meshgrid(D_array, PD_array)
+
+        # sweep through parameter space, calculate min mass
+        for i in range(self.N):
+            for j in range(self.N):
+                flowdata = Flow(D_mesh[i, j], PD_mesh[i, j], c, z)
+                oned_flow_modeling(flowdata)
+                self.save_iteration(flowdata, i, j)
+
+        self.get_min_mass()
+        self.disp_min_mass()
+        
+    def save_iteration(self, iteration, i, j):
         """ Save the data from each iteration of the parametric sweep. 
         """
         # 2D -> 1D index
-        idx = i + j*N
+        idx = i + j*self.N
         # store r, pd
         self.data[idx]['r'] = iteration.r_channel
         self.data[idx]['pd'] = iteration.pd_ratio
-        for key in self.titles.keys():
+        for key in Flow.savedata.keys():
             self.data[idx][key] = iteration.__dict__[key]
 
     def get_min_mass(self):

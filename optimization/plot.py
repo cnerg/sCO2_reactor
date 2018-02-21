@@ -8,7 +8,7 @@ import numpy as np
 import math
 
 
-def plot(results, key):
+def plot(results, key, titles):
     """Produce surface plot of the flow results as function of PD and coolant
     channel diameter.
     """
@@ -30,7 +30,7 @@ def plot(results, key):
     plt.xticks(rotation=25, fontsize=6)
     ax.set_ylabel("Fuel Pitch to Coolant D Ratio [-]", fontsize=7)
     plt.yticks(rotation=25, fontsize=6)
-    ax.set_zlabel(results.titles[key][1], fontsize=7)
+    ax.set_zlabel(titles[key][1], fontsize=7)
 
     # Customize the z axis.
     ax.set_zlim(np.nanmin(M), np.nanmax(M))
@@ -43,7 +43,7 @@ def plot(results, key):
     niceMathTextForm = ScalarFormatter(useMathText=True)
     ax.w_zaxis.set_major_formatter(niceMathTextForm)
     ax.ticklabel_format(axis="z", style="sci", scilimits=(0, 0))
-    plt.title(results.titles[key][0])
+    plt.title(titles[key][0])
 
     # Add a color bar which maps values to colors.
     fig.colorbar(surf, shrink=0.5, aspect=5, format='%.0e')
