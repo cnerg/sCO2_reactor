@@ -8,43 +8,13 @@ Functions contained in this module:
     *sweep_configs
 """
 # Other imports
-import numpy as np
 import argparse
 import sys
 # Import TH functions
-from ht_functions import Flow, ParametricSweep, oned_flow_modeling
+from ht_functions import Flow, ParametricSweep
 from plot import plot
 
-
-def sweep_geometric_configs(diams, pds, z, c, N):
-    """Perform parametric sweep through pin cell geometric space. Calculate the
-    minimum required mass for TH purposes at each point.
-    """
-    # calculate appropriate step sizes given range
-    D_step = (diams[1] - diams[0]) / N
-    PD_step = (pds[1] - pds[0]) / N
-    # ranges for diameter and pitch/diameter ratio
-    D_array = np.arange(diams[0], diams[1], D_step)
-    PD_array = np.arange(pds[0], pds[1], PD_step)
-
-    # create parameter mesh
-    D_mesh, PD_mesh = np.meshgrid(D_array, PD_array)
-
-    # initialize object to save sweep results
-    sweepresults = ParametricSweep(D_mesh, PD_mesh, N)
-    # sweep through parameter space, calculate min mass
-    for i in range(N):
-        for j in range(N):
-            flowdata = Flow(D_mesh[i, j], PD_mesh[i, j], c, z)
-            oned_flow_modeling(flowdata)
-            sweepresults.save_iteration(flowdata, i, j)
-
-    sweepresults.get_min_mass()
-    sweepresults.disp_min_mass()
-    
-    return sweepresults
-
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("d_lower", type=float, help="channel D lower lim [m]")
     parser.add_argument("d_upper", type=float, help="channel D upper lim [m]")
@@ -65,14 +35,17 @@ if __name__ == '__main__':
               "diameter! Set min PD > 1!")
         sys.exit()
     
-
-    sweepresults = sweep_configs((args.d_lower, args.d_upper),
-                                 (args.pd_lower, args.pd_upper),
-                                  args.z, args.clad_t, args.steps)
+    sweepresults = ParametricSweep(args.steps)
+    sweepresults.sweep_geometric_configs((args.d_lower, args.d_upper),
+                                         (args.pd_lower, args.pd_upper),
+                                          args.z, args.clad_t)
     
     if args.plotkey:
-        plt = plot(sweepresults, args.plotkey)
+        plt = plot(sweepresults, args.plotkey, Flow.savedata)
         savename = args.plotkey + '.png'
         plt.savefig(savename, dpi=500)
         if args.show:
             plt.show()
+
+if __name__ == '__main__':
+    main()
