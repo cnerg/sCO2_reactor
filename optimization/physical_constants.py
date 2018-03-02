@@ -39,12 +39,11 @@ class FlowProperties:
     dp_allowed = P_in - P_out  # pressure drop limit [Pa]
     default = True
 
-    def __init__(self, T, P, mass_flow, thermal_power, efficiency):
+    def __init__(self, T, P, mass_flow, thermal_power):
         """Inialize FlowProperties class and load required flow property data.
 
         Modified Attributes:
         -----------------------
-            eta: (float) cycle efficiency [-]
             m_dot: (float) mass flow rate [kg/s]
             Q_therm: (float) required thermal reactor power [W]
             T: (float) bulk coolant temperature [K]
@@ -52,13 +51,18 @@ class FlowProperties:
             dp_allowed: (float) power-cycle constrained dp [Pa]
             mass: (float) required reactor mass
         """
-        self.eta = efficiency
         self.m_dot = mass_flow
         self.Q_therm = thermal_power
         self.T = float(T)
         self.P = float(P) * 1e3
         self.secondary_properties()
         self.dP_allowed = 0
+        t_limit = self.coeffs['T_limits']
+        # if the input temperature is out of range of the fit, print a warning
+        # message
+        if self.T < t_limit[0] or self.T > t_limit[1]:
+            print("Warning T outside of fit range. Consider re-calculating your\
+ fit coeffs. to include this temperature!")
 
     def secondary_properties(self):
         """Calculate secondary properties from primary flow properties
@@ -90,15 +94,9 @@ class FlowProperties:
         --------
             (float) the linear fit estimate to the property f(T)
         """
-        t_limit = self.coeffs['T_limits']
         # get coefficients for f(T) = A*T + B
         A = self.coeffs[prop][0]
         B = self.coeffs[prop][1]
-        # if the input temperature is out of range of the fit, print a warning
-        # message
-        if self.T < t_limit[0] or self.T > t_limit[1]:
-            print("Warning T outside of fit range. Consider re-calculating your\
-fit coefficients to include this temperature!!")
         
         return A*self.T + B
 
