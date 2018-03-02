@@ -7,7 +7,7 @@ class FlowProperties:
     """Class to store flow properties and calculate secondary properties from
     fundamental props.
     """
-    # coefficients for linear fit Ax + b
+    # coefficients for linear fit f(T) = A*T + b
     coeffs = {'k'   : (7.0182e-5, 0.0135),
               'mu'  : (2.6652e-8, 1.32523e-5),
               'rho' : (-0.080314, 167.308),
@@ -42,7 +42,7 @@ class FlowProperties:
     def __init__(self, T, P, mass_flow, thermal_power, efficiency):
         """Inialize FlowProperties class and load required flow property data.
 
-        Initialized Attributes:
+        Modified Attributes:
         -----------------------
             eta: (float) cycle efficiency [-]
             m_dot: (float) mass flow rate [kg/s]
@@ -79,11 +79,23 @@ class FlowProperties:
         self.Pr = self.Cp * self.mu / self.k_cool
     
     def evaluate_fit(self, prop):
-        """Use curve fit to calculate property.
+        """Use a linear curve fit to estimate secondary flow property as a
+        function of coolant temperature.
+
+        Arguments:
+        ----------
+            prop: (str) a key to the coeffs used to access the coefficients to
+            perform the linear fit.
+        Returns:
+        --------
+            (float) the linear fit estimate to the property f(T)
         """
         t_limit = self.coeffs['T_limits']
+        # get coefficients for f(T) = A*T + B
         A = self.coeffs[prop][0]
         B = self.coeffs[prop][1]
+        # if the input temperature is out of range of the fit, print a warning
+        # message
         if self.T < t_limit[0] or self.T > t_limit[1]:
             print("Warning T outside of fit range. Consider re-calculating your\
 fit coefficients to include this temperature!!")
@@ -115,11 +127,5 @@ k_fuel = fuel_cond(T_centerline)
 rho_W = 19250  # clad density [kg/m^3]
 rho_UN = 11300  # fuel density [kg/m^3]
 fuel_frac = 0.6  # fraction of fuel in CERMET
-
-###############################################################################
-#                                                                             #
-#                   Calculated Parameters From Power Cycle                    #
-#                                                                             #
-###############################################################################
 # mixed density for CERMET fuel
 rho_fuel = fuel_frac*rho_UN + (1-fuel_frac)*rho_W
