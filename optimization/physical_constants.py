@@ -3,6 +3,92 @@
 """
 import math
 
+class FlowProperties:
+    """Class to store flow properties and calculate secondary properties from
+    fundamental props.
+    """
+    # coefficients for linear fit Ax + b
+    coeffs = {'k'   : (7.0182e-5, 0.0135),
+              'mu'  : (2.6652e-8, 1.32523e-5),
+              'rho' : (-0.080314, 167.308),
+              'Cp'  : (0.255, 977.66),
+              # temperature limit for curve fits
+              'T_limits' : (900, 1200)
+             }
+    
+    W_e = 40000 # target electrical power [W]
+
+    ###############################################################################
+    #                                                                             #
+    #                     Given Parameters From Power Cycle                       #
+    #                                                                             #
+    ###############################################################################
+    m_dot = 0.75  # coolant flow [kg/s]
+    Q_therm = 131000  # core thermal power [W]
+    eta = W_e / Q_therm
+    T_in = 962.9  # core inlet temp [K] (from power cycle model)
+    T_out = 1100  # core outlet temp [K] (from power cycle model)
+    T = T_in + (T_out - T_in) / 2  # bulk coolant temp. [K]
+    rho = 86.96  # coolant density [kg/m^3]
+    k_cool = 0.086  # coolant conductivity [W/m-k]
+    Cp_cool = 1242  # coolant specific heat [J/kg-k]
+    mu = 0.00004079  # coolant viscosity [kg/m-s]
+    Pr = Cp_cool * mu / k_cool  # coolant Prandtl numbe[-]
+    P_in = 1.79064e7  # inlet pressure [Pa]
+    P_out = 1.74229e7  # outlet pressure [Pa]
+    dp_allowed = P_in - P_out  # pressure drop limit [Pa]
+    default = True
+
+    def __init__(self, T, P, mass_flow, thermal_power, efficiency):
+        """Inialize FlowProperties class and load required flow property data.
+
+        Initialized Attributes:
+        -----------------------
+            eta: (float) cycle efficiency [-]
+            m_dot: (float) mass flow rate [kg/s]
+            Q_therm: (float) required thermal reactor power [W]
+            T: (float) bulk coolant temperature [K]
+            P: (float) bulk coolant pressure [Pa]
+            dp_allowed: (float) power-cycle constrained dp [Pa]
+            mass: (float) required reactor mass
+        """
+        self.eta = efficiency
+        self.m_dot = mass_flow
+        self.Q_therm = thermal_power
+        self.T = float(T)
+        self.P = float(P) * 1e3
+        self.secondary_properties()
+        self.dP_allowed = 0
+
+    def secondary_properties(self):
+        """Calculate secondary properties from primary flow properties
+        
+        Modified Attributes:
+        --------------------
+            Cp: (float) specific heat [kJ/kg-K]
+            mu: (float) dynamic viscosity [kg/m-s]
+            k_cool: (float) coolant conductivity [W/m-k]
+            rho: (float) coolant density [kg/m^3]
+            Pr: (float) cooland Prandtl number [-]
+        """
+        # calculate Cp, mu, k, rho, Pr    
+        self.Cp = self.evaluate_fit('Cp')
+        self.mu = self.evaluate_fit('mu')
+        self.k_cool = self.evaluate_fit('k')
+        self.rho = self.evaluate_fit('rho')
+        self.Pr = self.Cp * self.mu / self.k_cool
+    
+    def evaluate_fit(self, prop):
+        """Use curve fit to calculate property.
+        """
+        t_limit = self.coeffs['T_limits']
+        A = self.coeffs[prop][0]
+        B = self.coeffs[prop][1]
+        if self.T < t_limit[0] or self.T > t_limit[1]:
+            print("Warning T outside of fit range. Consider re-calculating your\
+fit coefficients to include this temperature!!")
+        
+        return A*self.T + B
 
 def fuel_cond(T):
     """Estimate CERMET fuel conductivity based on T. Use a correlation from Webb
@@ -16,23 +102,6 @@ def fuel_cond(T):
 
     return kc
 
-
-###############################################################################
-#                                                                             #
-#                     Given Parameters From Power Cycle                       #
-#                                                                             #
-###############################################################################
-m_dot = 0.75  # coolant flow [kg/s]
-Q_therm = 131000  # core thermal power [W]
-T_in = 962.9  # core inlet temp [K] (from power cycle model)
-T_out = 1100  # core outlet temp [K] (from power cycle model)
-T_bulk = T_in + (T_out - T_in) / 2  # bulk coolant temp. [K]
-rho_cool = 87.13  # coolant density [kg/m^3]
-Cp_cool = 1274  # coolant specific heat [J/kg-k]
-mu = 0.00004306  # coolant viscosity [kg/m-s]
-P_in = 1.79064e7  # inlet pressure [Pa]
-P_out = 1.74229e7  # outlet pressure [Pa]
-
 ###############################################################################
 #                                                                             #
 #                            Literature Values                                #
@@ -41,7 +110,6 @@ P_out = 1.74229e7  # outlet pressure [Pa]
 T_fuel_max = 1847.5  # centerline fuel temperature [K]
 T_centerline = T_fuel_max
 k_clad = 108.3  # clad conductivity: W @ 1473 K [W/m-K]
-k_cool = 0.07531  # coolant conductivity [W/m-k]
 # conservative estimate for thermal conductivity at fuel centerline temperature.
 k_fuel = fuel_cond(T_centerline)
 rho_W = 19250  # clad density [kg/m^3]
@@ -53,7 +121,5 @@ fuel_frac = 0.6  # fraction of fuel in CERMET
 #                   Calculated Parameters From Power Cycle                    #
 #                                                                             #
 ###############################################################################
-dp_allowed = P_in - P_out  # pressure drop limit [Pa]
-Pr = Cp_cool * mu / k_cool  # coolant Prandtl numbe[-]
 # mixed density for CERMET fuel
 rho_fuel = fuel_frac*rho_UN + (1-fuel_frac)*rho_W

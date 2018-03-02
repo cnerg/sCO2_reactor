@@ -111,7 +111,6 @@ class Flow:
     dp = 0  # channel pressure drop
 
     # heat transfer attributes
-    dt = pc.T_centerline - pc.T_bulk  # temp. drop fuel -> coolant
     h_bar = 0  # average heat transfer coefficient
     Nu = 0  # Nusselt number
     f = 0  # friction factor
@@ -124,7 +123,7 @@ class Flow:
     q_bar = 0  # axially-averaged volumetric generation
     q_per_channel = 0  # generation per fuel channel
 
-    def __init__(self, diameter, PD, c, L):
+    def __init__(self, diameter, PD, c, L, flowprops=pc.FlowProperties):
         """Initialize the flow iteration class.
 
         Initialized Attributes:
@@ -144,6 +143,8 @@ class Flow:
         # get equivalent annular radii for q_bar calculations
         self.r_i = self.r_channel + self.c
         self.r_o = self.pitch / math.sqrt(3)
+        self.fps = flowprops
+        self.dt = pc.T_centerline - self.fps.T  # temp. drop fuel -> coolant
 
     def set_geom(self):
         """Setup the problem geometry.
@@ -176,17 +177,17 @@ class Flow:
             h_bar: heat transfer coefficient [W/m^2-K]
         """
         # calculate mass flux
-        self.G_dot = pc.m_dot / (self.A_flow * self.guess_channels)
+        self.G_dot = self.fps.m_dot / (self.A_flow * self.guess_channels)
         # calculate flow velocity from mass flux
-        self.v = self.G_dot / pc.rho_cool
+        self.v = self.G_dot / self.fps.rho
         # calculate Reynolds Number
-        self.Re = pc.rho_cool * self.v * self.D_e / pc.mu
+        self.Re = self.fps.rho * self.v * self.D_e / self.fps.mu
         # Darcy-Weisbach friction factor for pressure drop correlation El Wakil (9-4)
         self.f = 0.184 / math.pow(self.Re, 0.2)
         # Dittus-Boelter equation (9-22) from El-Wakil
-        self.Nu = 0.023*math.pow(self.Re, 0.8)*math.pow(pc.Pr, 0.4)
+        self.Nu = 0.023*math.pow(self.Re, 0.8)*math.pow(self.fps.Pr, 0.4)
         # heat transfer coefficient
-        self.h_bar = self.Nu * pc.k_cool / self.D_e
+        self.h_bar = self.Nu * self.fps.k_cool / self.D_e
 
     def get_q_per_channel(self):
         """Calculate achievable average volumetric generation:
@@ -229,7 +230,7 @@ class Flow:
         self.q_per_channel = self.q_bar * self.A_fuel * self.L
 
         # calculate required fuel channels
-        self.N_channels = pc.Q_therm / self.q_per_channel
+        self.N_channels = self.fps.Q_therm / self.q_per_channel
 
     def calc_dp(self):
         """Calculate axial pressure drop across the reactor core.
@@ -239,7 +240,7 @@ class Flow:
             dp: core pressure drop [Pa]
         """
         # Darcy pressure drop (El-Wakil 9-3)
-        self.dp = self.f * self.L * pc.rho_cool * \
+        self.dp = self.f * self.L * self.fps.rho * \
             self.v * self.v / (2*self.D_e)
 
     def adjust_dp(self):
@@ -258,7 +259,7 @@ power cycle-constrained allowable dp. If the pressure is too high, it
         """
 
         self.calc_dp()
-        while self.dp > pc.dp_allowed:
+        while self.dp > self.fps.dp_allowed:
             # set N_channels and guess_channels
             self.guess_channels = self.get_dp_constrained_Nchannels()
             self.N_channels = self.guess_channels
@@ -277,10 +278,10 @@ power cycle-constrained allowable dp. If the pressure is too high, it
         --------
             req_channels: Min N_channels required to meet dp constraint [-].
         """
-        v_req = math.sqrt(2*self.D_e * pc.dp_allowed /
-                          (self.f * self.L * pc.rho_cool))
+        v_req = math.sqrt(2*self.D_e * self.fps.dp_allowed /
+                          (self.f * self.L * self.fps.rho))
         req_channels = math.ceil(
-            pc.m_dot / (self.A_flow * pc.rho_cool * v_req))
+            pc.m_dot / (self.A_flow * self.fps.rho * v_req))
 
         return req_channels
 
