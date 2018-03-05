@@ -5,7 +5,7 @@ import operator
 import sys
 from scipy.optimize import minimize, minimize_scalar
 # Import physical constants
-import physical_constants as pc
+from physical_constants import const, FlowProperties
 
 
 def oned_flow_modeling(analyze_flow):
@@ -116,7 +116,7 @@ class Flow:
     q_bar = 0  # axially-averaged volumetric generation
     q_per_channel = 0  # generation per fuel channel
 
-    def __init__(self, diameter, PD, c, L, flowprops=pc.FlowProperties()):
+    def __init__(self, diameter, PD, c, L, flowprops=FlowProperties()):
         """Initialize the flow iteration class.
 
         Initialized Attributes:
@@ -137,7 +137,7 @@ class Flow:
         self.r_i = self.r_channel + self.c
         self.r_o = self.pitch / math.sqrt(3)
         self.fps = flowprops
-        self.dT = pc.T_centerline - self.fps.T  # temp. drop fuel -> coolant
+        self.dT = const['T_center'] - self.fps.T  # temp. drop fuel -> coolant
 
     def set_geom(self):
         """Setup the problem geometry.
@@ -204,11 +204,11 @@ class Flow:
         
         # Use resistance network to calculate q_trip_max
         # resistance to conduction in fuel
-        R_total = (self.r_o**2 / (4*pc.k_fuel)) *\
+        R_total = (self.r_o**2 / (4*const['k_fuel'])) *\
                  ((self.r_i/self.r_o)**2 - 2*math.log(self.r_i/self.r_o) - 1)
         # resistance to conduction in clad
         R_total += (self.r_o**2)/2 * (1-(self.r_i/self.r_o)**2) *\
-                    math.log(self.r_i/(self.r_i-self.c)) / pc.k_clad
+                    math.log(self.r_i/(self.r_i-self.c)) / const['k_clad']
         # resistance to convection clad -> coolant
         R_total += (self.r_o**2)/2 * (1-(self.r_i/self.r_o)**2) *\
                   1 / (self.h_bar*(self.r_i - self.c))
@@ -237,9 +237,7 @@ class Flow:
     def adjust_dp(self):
         """Check for pressure constraint. This method calls calc_dp() to get
         the pressure drop in the current condition. It checks the dp against the
-                self.r = radius
-        self.PD = PD
-power cycle-constrained allowable dp. If the pressure is too high, it
+        power cycle-constrained allowable dp. If the pressure is too high, it
         adjusts N_channels to the min N_channels that satisfies the dp
         constraint.
 
@@ -315,7 +313,7 @@ power cycle-constrained allowable dp. If the pressure is too high, it
             mass: total fuel mass[kg]
         """
         self.Vol_fuel = self.A_fuel * self.L * self.N_channels
-        self.mass = self.Vol_fuel * pc.rho_fuel
+        self.mass = self.Vol_fuel * const['rho_fuel']
 
 
 class ParametricSweep():

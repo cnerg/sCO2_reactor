@@ -4,6 +4,35 @@
 import math
 import numpy as np
 
+def fuel_cond(T):
+    """Estimate CERMET fuel conductivity based on T. Use a correlation from Webb
+    and Charit "Analytical Determination of thermal conductivity of W-UO2 and
+    W-UN CERMET nuclear fuels. Correlation provided for 60% UN
+    """
+
+    kc = 1.841e-19*math.pow(T, 6) - 2.097e-15*math.pow(T, 5) +\
+        9.721e-12*math.pow(T, 4) - 2.369e-8*math.pow(T, 3) +\
+        3.283e-5*math.pow(T, 2) - 0.0267*T + 63.18
+
+    return kc
+
+###############################################################################
+#                                                                             #
+#                            Literature Values                                #
+#                                                                             #
+###############################################################################
+const = {'T_center' : 1847.5, # centerline fuel temp (max) [K]
+         'k_clad' : 108.3,  # clad conductivity: W @ 1473 K [W/m-K]
+         'rho_W' : 19250,  # clad density [kg/m^3]
+         'rho_UN' : 11300,  # fuel density [kg/m^3]
+         'fuel_frac' : 0.6,  # volume fraction of fuel in CERMET
+         }
+# mixed fuel density
+const.update( {'rho_fuel' : const['fuel_frac'] * const['rho_UN'] +
+                           (1 - const['fuel_frac'])*const['rho_W']} )
+# conservative estimate (@centerline T) for fuel thermal conductivity
+const.update( {'k_fuel' : fuel_cond(const['T_center'])} )
+
 class FlowProperties:
     """Class to store flow properties and calculate secondary properties from
     fundamental props.
@@ -72,30 +101,3 @@ class FlowProperties:
         # calculate Pr number
         self.Pr = self.Cp * self.mu / self.k_cool
          
-def fuel_cond(T):
-    """Estimate CERMET fuel conductivity based on T. Use a correlation from Webb
-    and Charit "Analytical Determination of thermal conductivity of W-UO2 and
-    W-UN CERMET nuclear fuels. Correlation provided for 60% UN
-    """
-
-    kc = 1.841e-19*math.pow(T, 6) - 2.097e-15*math.pow(T, 5) +\
-        9.721e-12*math.pow(T, 4) - 2.369e-8*math.pow(T, 3) +\
-        3.283e-5*math.pow(T, 2) - 0.0267*T + 63.18
-
-    return kc
-
-###############################################################################
-#                                                                             #
-#                            Literature Values                                #
-#                                                                             #
-###############################################################################
-T_fuel_max = 1847.5  # centerline fuel temperature [K]
-T_centerline = T_fuel_max
-k_clad = 108.3  # clad conductivity: W @ 1473 K [W/m-K]
-# conservative estimate for thermal conductivity at fuel centerline temperature.
-k_fuel = fuel_cond(T_centerline)
-rho_W = 19250  # clad density [kg/m^3]
-rho_UN = 11300  # fuel density [kg/m^3]
-fuel_frac = 0.6  # fraction of fuel in CERMET
-# mixed density for CERMET fuel
-rho_fuel = fuel_frac*rho_UN + (1-fuel_frac)*rho_W
