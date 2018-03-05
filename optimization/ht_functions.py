@@ -71,19 +71,12 @@ class Flow:
     transfer/fluid flow problem on a CERMET Flow Channel.
     """
     savedata = {'mass': ("Total Fuel Mass", "m [kg]"),
-                'Re': ("Reynolds Number", "Re [-]"),
-                'G_dot': ("Reactor Mass Flux", "G_dot [kg/m^2-s]"),
                 'N_channels': ("Number of Fuel Channels", "N Channels [-]"),
-                'Nu': ("Nusselt Number", "Nu [-]"),
                 'dp': ("Subchannel Pressure Drop", "dP [Pa]"),
                 'h_bar': ("Heat Transfer Coefficient", "h [W / m^2 - K]"),
                 'q_per_channel': ("Total Subchannel Generation", "q/channel [W]"),
                 'q_bar': ("Average Volumetric Generation", "q_bar [W/m^3]"),
                 'v': ("Flow Velocity", "v [m/s]"),
-                'R_fuel': ("Resistance to Conduction in Fuel", "R_fuel [K/W]"),
-                'R_clad': ("Resistance to Conduction in Clad", "R_clad [K/W]"),
-                'R_conv': ("Resistance to Convection", "R_conv [K/W]"),
-                'R_tot': ("Total Resistance to Heat Transfer", "R_tot [K/W]"),
                 'AR': ("Approximate Core Aspect Ratio", "AR [-]")
                }
 
@@ -169,25 +162,22 @@ class Flow:
 
         Modified Attributes:
         --------------------
-            G_dot: mass flux through all flow channels [kg/m^2-s]
             v: flow velocity [m/s]
-            Re: Reynolds number [-]
             f: friction factor [-]
-            Nu: Nusselt number [-]
             h_bar: heat transfer coefficient [W/m^2-K]
         """
         # calculate mass flux
-        self.G_dot = self.fps.m_dot / (self.A_flow * self.guess_channels)
+        G_dot = self.fps.m_dot / (self.A_flow * self.guess_channels)
         # calculate flow velocity from mass flux
-        self.v = self.G_dot / self.fps.rho
+        self.v = G_dot / self.fps.rho
         # calculate Reynolds Number
-        self.Re = self.fps.rho * self.v * self.D_e / self.fps.mu
-        # Darcy-Weisbach friction factor for pressure drop correlation El Wakil (9-4)
-        self.f = 0.184 / math.pow(self.Re, 0.2)
+        Re = self.fps.rho * self.v * self.D_e / self.fps.mu
         # Dittus-Boelter equation (9-22) from El-Wakil
-        self.Nu = 0.023*math.pow(self.Re, 0.8)*math.pow(self.fps.Pr, 0.4)
+        Nu = 0.023*math.pow(Re, 0.8)*math.pow(self.fps.Pr, 0.4)
         # heat transfer coefficient
-        self.h_bar = self.Nu * self.fps.k_cool / self.D_e
+        self.h_bar = Nu * self.fps.k_cool / self.D_e
+        # Darcy-Weisbach friction factor for pressure drop correlation El Wakil (9-4)
+        self.f = 0.184 / math.pow(Re, 0.2)
 
     def get_q_per_channel(self):
         """Calculate achievable average volumetric generation:
@@ -211,19 +201,20 @@ class Flow:
         """
 
         # El Wakil (6-62) calculates max q''' at axial centerline
-        self.R_fuel = (self.r_o**2 / (4*pc.k_fuel)) *\
-                      ((self.r_i/self.r_o)**2 - 2*math.log(self.r_i/self.r_o) - 1)
-
-        self.R_clad = (self.r_o**2)/2 * (1-(self.r_i/self.r_o)**2) *\
-            math.log(self.r_i/(self.r_i-self.c)) / pc.k_clad
-
-        self.R_conv = (self.r_o**2)/2 * (1-(self.r_i/self.r_o)**2) *\
-            1 / (self.h_bar*(self.r_i - self.c))
-
-        self.R_tot = self.R_fuel + self.R_clad + self.R_conv
+        
+        # Use resistance network to calculate q_trip_max
+        # resistance to conduction in fuel
+        R_total = (self.r_o**2 / (4*pc.k_fuel)) *\
+                 ((self.r_i/self.r_o)**2 - 2*math.log(self.r_i/self.r_o) - 1)
+        # resistance to conduction in clad
+        R_total += (self.r_o**2)/2 * (1-(self.r_i/self.r_o)**2) *\
+                    math.log(self.r_i/(self.r_i-self.c)) / pc.k_clad
+        # resistance to convection clad -> coolant
+        R_total += (self.r_o**2)/2 * (1-(self.r_i/self.r_o)**2) *\
+                  1 / (self.h_bar*(self.r_i - self.c))
 
         # calculate centerline volumetric generation
-        q_trip_max = self.dT / self.R_tot
+        q_trip_max = self.dT / R_total
 
         # consider axial flux variation
         self.q_bar = q_trip_max * 2 / math.pi
