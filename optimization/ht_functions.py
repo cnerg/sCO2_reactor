@@ -144,7 +144,7 @@ class Flow:
         self.r_i = self.r_channel + self.c
         self.r_o = self.pitch / math.sqrt(3)
         self.fps = flowprops
-        self.dt = pc.T_centerline - self.fps.T  # temp. drop fuel -> coolant
+        self.dT = pc.T_centerline - self.fps.T  # temp. drop fuel -> coolant
 
     def set_geom(self):
         """Setup the problem geometry.
@@ -223,7 +223,7 @@ class Flow:
         self.R_tot = self.R_fuel + self.R_clad + self.R_conv
 
         # calculate centerline volumetric generation
-        q_trip_max = self.dt / self.R_tot
+        q_trip_max = self.dT / self.R_tot
 
         # consider axial flux variation
         self.q_bar = q_trip_max * 2 / math.pi
