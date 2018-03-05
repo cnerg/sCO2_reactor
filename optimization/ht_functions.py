@@ -123,7 +123,7 @@ class Flow:
     q_bar = 0  # axially-averaged volumetric generation
     q_per_channel = 0  # generation per fuel channel
 
-    def __init__(self, diameter, PD, c, L, flowprops=pc.FlowProperties):
+    def __init__(self, diameter, PD, c, L, flowprops=pc.FlowProperties()):
         """Initialize the flow iteration class.
 
         Initialized Attributes:
@@ -259,7 +259,7 @@ power cycle-constrained allowable dp. If the pressure is too high, it
         """
 
         self.calc_dp()
-        while self.dp > self.fps.dp_allowed:
+        while self.dp > self.fps.dp_limit:
             # set N_channels and guess_channels
             self.guess_channels = self.get_dp_constrained_Nchannels()
             self.N_channels = self.guess_channels
@@ -278,10 +278,10 @@ power cycle-constrained allowable dp. If the pressure is too high, it
         --------
             req_channels: Min N_channels required to meet dp constraint [-].
         """
-        v_req = math.sqrt(2*self.D_e * self.fps.dp_allowed /
+        v_req = math.sqrt(2*self.D_e * self.fps.dp_limit /
                           (self.f * self.L * self.fps.rho))
         req_channels = math.ceil(
-            pc.m_dot / (self.A_flow * self.fps.rho * v_req))
+            self.fps.m_dot / (self.A_flow * self.fps.rho * v_req))
 
         return req_channels
 
@@ -348,7 +348,7 @@ class ParametricSweep():
                                          ['r', 'pd'],
                                          'formats': ['f8']*N_cats})
 
-    def sweep_geometric_configs(self, diams, pds, z, c):
+    def sweep_geometric_configs(self, diams, pds, z, c, props=False):
         """Perform parametric sweep through pin cell geometric space. Calculate the
         minimum required mass for TH purposes at each point.
         """
@@ -365,12 +365,15 @@ class ParametricSweep():
         # sweep through parameter space, calculate min mass
         for i in range(self.N):
             for j in range(self.N):
-                flowdata = Flow(D_mesh[i, j], PD_mesh[i, j], c, z)
+                if props:
+                    flowdata = Flow(D_mesh[i, j], PD_mesh[i, j], c, z, props)
+                # use default flow values
+                else:
+                    flowdata = Flow(D_mesh[i, j], PD_mesh[i, j], c, z)
+                
                 oned_flow_modeling(flowdata)
                 self.save_iteration(flowdata, i, j)
 
-        self.get_min_mass()
-        self.disp_min_mass()
         
     def save_iteration(self, iteration, i, j):
         """ Save the data from each iteration of the parametric sweep. 

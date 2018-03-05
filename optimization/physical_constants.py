@@ -2,44 +2,21 @@
 *** All values are bulk flow values averaged axially across the core ***
 """
 import math
+import numpy as np
 
 class FlowProperties:
     """Class to store flow properties and calculate secondary properties from
     fundamental props.
     """
-    # coefficients for linear fit f(T) = A*T + b
-    coeffs = {'k'   : (7.0182e-5, 0.0135),
-              'mu'  : (2.6652e-8, 1.32523e-5),
-              'rho' : (-0.080314, 167.308),
-              'Cp'  : (0.255, 977.66),
-              # temperature limit for curve fits
-              'T_limits' : (900, 1200)
-             }
-    
-    W_e = 40000 # target electrical power [W]
+    # default flow properties
+    defaults = {'m_dot' : 0.75, # coolant flow [kg/s]
+                'Q_therm' : 131000, # core thermal power [W]
+                'T' : 1031.45, # bulk coolant temp [K]
+                'P' : 1.766e7, # bulk coolant pressure [Pa]
+                'dp_limit' : 483500, # pressure drop limit [Pa]
+               }
 
-    ###############################################################################
-    #                                                                             #
-    #                     Given Parameters From Power Cycle                       #
-    #                                                                             #
-    ###############################################################################
-    m_dot = 0.75  # coolant flow [kg/s]
-    Q_therm = 131000  # core thermal power [W]
-    eta = W_e / Q_therm
-    T_in = 962.9  # core inlet temp [K] (from power cycle model)
-    T_out = 1100  # core outlet temp [K] (from power cycle model)
-    T = T_in + (T_out - T_in) / 2  # bulk coolant temp. [K]
-    rho = 86.96  # coolant density [kg/m^3]
-    k_cool = 0.086  # coolant conductivity [W/m-k]
-    Cp_cool = 1242  # coolant specific heat [J/kg-k]
-    mu = 0.00004079  # coolant viscosity [kg/m-s]
-    Pr = Cp_cool * mu / k_cool  # coolant Prandtl numbe[-]
-    P_in = 1.79064e7  # inlet pressure [Pa]
-    P_out = 1.74229e7  # outlet pressure [Pa]
-    dp_allowed = P_in - P_out  # pressure drop limit [Pa]
-    default = True
-
-    def __init__(self, T, P, mass_flow, thermal_power):
+    def __init__(self, **kwargs):
         """Inialize FlowProperties class and load required flow property data.
 
         Modified Attributes:
@@ -48,25 +25,32 @@ class FlowProperties:
             Q_therm: (float) required thermal reactor power [W]
             T: (float) bulk coolant temperature [K]
             P: (float) bulk coolant pressure [Pa]
-            dp_allowed: (float) power-cycle constrained dp [Pa]
-            mass: (float) required reactor mass
+            dp_limit: (float) power-cycle constrained dp [Pa]
         """
-        self.m_dot = mass_flow
-        self.Q_therm = thermal_power
-        self.T = float(T)
-        self.P = float(P) * 1e3
+        if kwargs:
+            self.m_dot = kwargs['m_dot']
+            self.Q_therm = kwargs['Q_therm']
+            self.T = kwargs['T']
+            self.P = kwargs['P']
+            self.dp_limit = kwargs['dp_limit']
+        else: # use default values
+            for property in self.defaults:
+                self.__dict__[property] = self.defaults[property]
+            print("Warning, default flow properties are for testing purposes!!")
+
+        # estimate secondary properties 
         self.secondary_properties()
-        self.dP_allowed = 0
-        t_limit = self.coeffs['T_limits']
         # if the input temperature is out of range of the fit, print a warning
         # message
-        if self.T < t_limit[0] or self.T > t_limit[1]:
+        if self.T < self.t_limit[0] or self.T > self.t_limit[1]:
             print("Warning T outside of fit range. Consider re-calculating your\
  fit coeffs. to include this temperature!")
 
     def secondary_properties(self):
-        """Calculate secondary properties from primary flow properties
-        
+        """Calculate secondary properties from primary flow properties. Using
+        two arrays of fit coefficients, perform a linear fit for all required
+        flow properties. Finally, calculate Pr from mu, k_cool, and Cp
+
         Modified Attributes:
         --------------------
             Cp: (float) specific heat [kJ/kg-K]
@@ -75,31 +59,19 @@ class FlowProperties:
             rho: (float) coolant density [kg/m^3]
             Pr: (float) cooland Prandtl number [-]
         """
-        # calculate Cp, mu, k, rho, Pr    
-        self.Cp = self.evaluate_fit('Cp')
-        self.mu = self.evaluate_fit('mu')
-        self.k_cool = self.evaluate_fit('k')
-        self.rho = self.evaluate_fit('rho')
-        self.Pr = self.Cp * self.mu / self.k_cool
-    
-    def evaluate_fit(self, prop):
-        """Use a linear curve fit to estimate secondary flow property as a
-        function of coolant temperature.
-
-        Arguments:
-        ----------
-            prop: (str) a key to the coeffs used to access the coefficients to
-            perform the linear fit.
-        Returns:
-        --------
-            (float) the linear fit estimate to the property f(T)
-        """
-        # get coefficients for f(T) = A*T + B
-        A = self.coeffs[prop][0]
-        B = self.coeffs[prop][1]
+        # temperature limit for curve fits
+        self.t_limit = (900, 1200)
         
-        return A*self.T + B
+        # coefficients for linear fit f(T) = A*T + b
+        # k, mu, rho, Cp
+        A = np.array([7.0182e-5, 2.6652e-8, -0.080314, 0.255])
+        B = np.array([0.0135, 1.32523e-5, 167.308, 977.66])
 
+        # evaluate linear fit
+        [self.k_cool, self.mu, self.rho, self.Cp] = np.add(A*self.T, B)
+        # calculate Pr number
+        self.Pr = self.Cp * self.mu / self.k_cool
+         
 def fuel_cond(T):
     """Estimate CERMET fuel conductivity based on T. Use a correlation from Webb
     and Charit "Analytical Determination of thermal conductivity of W-UO2 and

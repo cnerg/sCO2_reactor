@@ -11,6 +11,7 @@ Functions contained in this module:
 import argparse
 import sys
 # Import TH functions
+from physical_constants import FlowProperties
 from ht_functions import Flow, ParametricSweep
 from plot import plot
 
@@ -34,12 +35,16 @@ def main():
         print("Error: Min fuel pitch must be greater than max coolant channel" +\
               "diameter! Set min PD > 1!")
         sys.exit()
-    
+    # example use of kwargs for setting flow properties
+    props = FlowProperties(T=1031.45, P=1.766e7, m_dot=0.75, Q_therm=131000,
+            dp_limit=483500)
     sweepresults = ParametricSweep(args.steps)
     sweepresults.sweep_geometric_configs((args.d_lower, args.d_upper),
                                          (args.pd_lower, args.pd_upper),
-                                          args.z, args.clad_t)
-    
+                                          args.z, args.clad_t, props)
+    sweepresults.get_min_mass()
+    sweepresults.disp_min_mass()
+
     if args.plotkey:
         plt = plot(sweepresults, args.plotkey, Flow.savedata)
         savename = args.plotkey + '.png'
