@@ -97,20 +97,13 @@ class Flow:
     N_channels = 0  # number of required fuel channels for given flow conditions
 
     # flow parameters
-    Re = 0  # Reynold's number
-    G_dot = 0  # mass flux
     D_e = 0  # hydraulic diameter
     v = 0  # flow velocity
     dp = 0  # channel pressure drop
 
     # heat transfer attributes
     h_bar = 0  # average heat transfer coefficient
-    Nu = 0  # Nusselt number
     f = 0  # friction factor
-    R_fuel = 0  # resistance to conduction in fuel
-    R_clad = 0  # resistance to conduction in clad
-    R_conv = 0  # resistance to convection to cool
-    R_tot = 0  # total resistance to heat transfer
 
     # heat generation
     q_bar = 0  # axially-averaged volumetric generation
