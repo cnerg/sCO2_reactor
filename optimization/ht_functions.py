@@ -330,7 +330,7 @@ class ParametricSweep():
                                          ['r', 'pd'],
                                          'formats': ['f8']*N_cats})
 
-    def sweep_geometric_configs(self, diams, pds, z, c, props=False):
+    def sweep_geometric_configs(self, diams, pds, z, c, props=None):
         """Perform parametric sweep through pin cell geometric space. Calculate the
         minimum required mass for TH purposes at each point.
         """
@@ -347,12 +347,7 @@ class ParametricSweep():
         # sweep through parameter space, calculate min mass
         for i in range(self.N):
             for j in range(self.N):
-                if props:
-                    flowdata = Flow(D_mesh[i, j], PD_mesh[i, j], c, z, props)
-                # use default flow values
-                else:
-                    flowdata = Flow(D_mesh[i, j], PD_mesh[i, j], c, z)
-                
+                flowdata = Flow(D_mesh[i, j], PD_mesh[i, j], c, z, props)
                 oned_flow_modeling(flowdata)
                 self.save_iteration(flowdata, i, j)
 

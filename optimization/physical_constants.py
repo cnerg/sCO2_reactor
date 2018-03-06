@@ -37,15 +37,8 @@ class FlowProperties:
     """Class to store flow properties and calculate secondary properties from
     fundamental props.
     """
-    # default flow properties
-    defaults = {'m_dot' : 0.75, # coolant flow [kg/s]
-                'Q_therm' : 131000, # core thermal power [W]
-                'T' : 1031.45, # bulk coolant temp [K]
-                'P' : 1.766e7, # bulk coolant pressure [Pa]
-                'dp_limit' : 483500, # pressure drop limit [Pa]
-               }
 
-    def __init__(self, **kwargs):
+    def __init__(self, flow_inputs=None):
         """Inialize FlowProperties class and load required flow property data.
 
         Modified Attributes:
@@ -56,24 +49,25 @@ class FlowProperties:
             P: (float) bulk coolant pressure [Pa]
             dp_limit: (float) power-cycle constrained dp [Pa]
         """
-        if kwargs:
-            self.m_dot = kwargs['m_dot']
-            self.Q_therm = kwargs['Q_therm']
-            self.T = kwargs['T']
-            self.P = kwargs['P']
-            self.dp_limit = kwargs['dp_limit']
-        else: # use default values
-            for property in self.defaults:
-                self.__dict__[property] = self.defaults[property]
-            print("Warning, default flow properties are for testing purposes!!")
+        # default flow properties
+        primary_properties = {'m_dot' : 0.75, # coolant flow [kg/s]
+                              'Q_therm' : 131000, # core thermal power [W]
+                              'T' : 1031.45, # bulk coolant temp [K]
+                              'P' : 1.766e7, # bulk coolant pressure [Pa]
+                              'dp_limit' : 483500, # pressure drop limit [Pa]
+                             }
+        # load optional custom flow properties
+        if flow_inputs:
+            primary_properties = flow_inputs
+        # store the flow properites
+        self.m_dot = primary_properties['m_dot']
+        self.Q_therm = primary_properties['Q_therm']
+        self.T = primary_properties['T']
+        self.P = primary_properties['P']
+        self.dp_limit = primary_properties['dp_limit']
 
         # estimate secondary properties 
         self.secondary_properties()
-        # if the input temperature is out of range of the fit, print a warning
-        # message
-        if self.T < self.t_limit[0] or self.T > self.t_limit[1]:
-            print("Warning T outside of fit range. Consider re-calculating your\
- fit coeffs. to include this temperature!")
 
     def secondary_properties(self):
         """Calculate secondary properties from primary flow properties. Using
@@ -89,15 +83,19 @@ class FlowProperties:
             Pr: (float) cooland Prandtl number [-]
         """
         # temperature limit for curve fits
-        self.t_limit = (900, 1200)
+        fit = {'t_limit' : (900, 1200),
+               # coefficients for linear fit f(T) = A*T + b
+               #                   k         mu         rho       Cp
+               'A' : np.array([7.0182e-5, 2.6652e-8, -0.080314, 0.255]),
+               'B' : np.array([0.0135,    1.32523e-5, 167.308,  977.66])
+              }
+        # if the input temperature is out of range of the fit, print a warning
+        # message
+        if self.T < fit['t_limit'][0] or self.T > fit['t_limit'][1]:
+            print("Warning T outside of fit range. Consider re-calculating your\
+ fit coeffs. to include this temperature!")
         
-        # coefficients for linear fit f(T) = A*T + b
-        # k, mu, rho, Cp
-        A = np.array([7.0182e-5, 2.6652e-8, -0.080314, 0.255])
-        B = np.array([0.0135, 1.32523e-5, 167.308, 977.66])
-
         # evaluate linear fit
-        [self.k_cool, self.mu, self.rho, self.Cp] = np.add(A*self.T, B)
+        [self.k_cool, self.mu, self.rho, self.Cp] = fit['A']*self.T + fit['B']
         # calculate Pr number
         self.Pr = self.Cp * self.mu / self.k_cool
-         

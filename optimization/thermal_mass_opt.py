@@ -35,9 +35,15 @@ def main():
         print("Error: Min fuel pitch must be greater than max coolant channel" +\
               "diameter! Set min PD > 1!")
         sys.exit()
-    # example use of kwargs for setting flow properties
-    props = FlowProperties(T=1031.45, P=1.766e7, m_dot=0.75, Q_therm=131000,
-            dp_limit=483500)
+    # setting flow properties
+    primary_flow_data = {'T' : 1031.45, 
+                         'P' : 1.766e7, 
+                         'm_dot' : 0.75, 
+                         'Q_therm' : 131000, 
+                         'dp_limit' : 483500
+                        }
+
+    props = FlowProperties(flow_inputs=primary_flow_data)
     sweepresults = ParametricSweep(args.steps)
     sweepresults.sweep_geometric_configs((args.d_lower, args.d_upper),
                                          (args.pd_lower, args.pd_upper),
