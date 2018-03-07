@@ -10,7 +10,7 @@ jobs:
                  name: run tests
                  command: |
                      cd ./optimization
-                     pytests
+                     pytest
 workflows:
     version: 2
     test:
