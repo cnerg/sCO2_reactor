@@ -17,8 +17,8 @@ from plot import plot
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("d_lower", type=float, help="channel D lower lim [m]")
-    parser.add_argument("d_upper", type=float, help="channel D upper lim [m]")
+    parser.add_argument("r_lower", type=float, help="channel r lower lim [m]")
+    parser.add_argument("r_upper", type=float, help="channel r upper lim [m]")
     parser.add_argument("pd_lower", type=float, help="PD lower lim [m]")
     parser.add_argument("pd_upper", type=float, help="PD upper lim [m]")
     parser.add_argument("z", type=float, help="axial height [m]")
@@ -45,7 +45,7 @@ def main():
 
     props = FlowProperties(flow_inputs=primary_flow_data)
     sweepresults = ParametricSweep(args.steps)
-    sweepresults.sweep_geometric_configs((args.d_lower, args.d_upper),
+    sweepresults.sweep_geometric_configs((args.r_lower, args.r_upper),
                                          (args.pd_lower, args.pd_upper),
                                           args.z, args.clad_t, props)
     sweepresults.get_min_mass()

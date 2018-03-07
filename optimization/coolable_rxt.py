@@ -14,8 +14,8 @@ from ht_functions import Flow, oned_flow_modeling
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("diameter", type=float,
-                        help="coolant channel diameter [m]")
+    parser.add_argument("radius", type=float,
+                        help="coolant channel radius [m]")
     parser.add_argument(
         "PD", type=float, help="fuel pitch / cool. diameter [-]")
     parser.add_argument("core_z", type=float, help="core axial height [m]")
@@ -28,7 +28,7 @@ def main():
         diameter!, set PD > 1")
         sys.exit()
     # perform calculation
-    test = Flow(args.diameter, args.PD, args.clad_t, args.core_z)
+    test = Flow(args.radius, args.PD, args.clad_t, args.core_z)
     oned_flow_modeling(test)
     # print results
     data = test.__dict__
