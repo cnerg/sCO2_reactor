@@ -15,10 +15,8 @@ def oned_flow_modeling(analyze_flow):
 
     Arguments:
     ----------
-        diameter: coolant channel diameter [m]
-        PD: fuel pitch to cool. D ratio [-]
-        L: reactor length [m]
-        c: clad thickness [m]
+        analyze_flow (flow) Flow object with methods and attributes to calculate
+        N_channels.
     Returns:
     --------
         None
@@ -109,7 +107,7 @@ class Flow:
     q_bar = 0  # axially-averaged volumetric generation
     q_per_channel = 0  # generation per fuel channel
 
-    def __init__(self, diameter, PD, c, L, flowprops=FlowProperties()):
+    def __init__(self, radius, PD, c, L, flowprops=FlowProperties()):
         """Initialize the flow iteration class.
 
         Initialized Attributes:
@@ -120,7 +118,7 @@ class Flow:
             L: length of core [m]
         """
         self.pd_ratio = PD
-        self.r_channel = diameter / 2.0
+        self.r_channel = radius
         self.c = c
         self.pitch = (self.r_channel + self.c) * self.pd_ratio * 2
         self.L = L
@@ -330,24 +328,24 @@ class ParametricSweep():
                                          ['r', 'pd'],
                                          'formats': ['f8']*N_cats})
 
-    def sweep_geometric_configs(self, diams, pds, z, c, props=None):
+    def sweep_geometric_configs(self, radii, pds, z, c, props=None):
         """Perform parametric sweep through pin cell geometric space. Calculate the
         minimum required mass for TH purposes at each point.
         """
         # calculate appropriate step sizes given range
-        D_step = (diams[1] - diams[0]) / self.N
+        R_step = (radii[1] - radii[0]) / self.N
         PD_step = (pds[1] - pds[0]) / self.N
-        # ranges for diameter and pitch/diameter ratio
-        D_array = np.arange(diams[0], diams[1], D_step)
+        # ranges for radois and pitch/diameter ratio
+        R_array = np.arange(radii[0], radii[1], R_step)
         PD_array = np.arange(pds[0], pds[1], PD_step)
 
         # create parameter mesh
-        D_mesh, PD_mesh = np.meshgrid(D_array, PD_array)
+        R_mesh, PD_mesh = np.meshgrid(R_array, PD_array)
 
         # sweep through parameter space, calculate min mass
         for i in range(self.N):
             for j in range(self.N):
-                flowdata = Flow(D_mesh[i, j], PD_mesh[i, j], c, z, props)
+                flowdata = Flow(R_mesh[i, j], PD_mesh[i, j], c, z, props)
                 oned_flow_modeling(flowdata)
                 self.save_iteration(flowdata, i, j)
 
