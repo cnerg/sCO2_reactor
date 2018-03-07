@@ -1,11 +1,10 @@
 import math
-from physical_constants import *
 import pytest
-from ht_functions import Flow
+from random import uniform
+from ht_functions import Flow, oned_flow_modeling
 
 # parameters for test case
-diameter = 0.01
-radius = diameter / 2.0
+radius = 0.005
 PD = 2
 c = 0.00031
 L = 0.5
@@ -15,10 +14,10 @@ N = 6
 def test_set_geom():
     """Test geometry initialization.
     """
-    test = Flow(diameter, PD, c, L)
+    test = Flow(radius, PD, c, L)
     test.guess = N
     # expected values
-    exp_De = diameter
+    exp_De = radius * 2.0
     exp_A_flow = math.pi * radius**2
     exp_A_fuel = math.sqrt(3) * ((radius + c) * PD * 2)**2 / 2.0 -\
         (radius + c)**2 * math.pi
@@ -33,25 +32,22 @@ def test_set_geom():
 def test_characterize_flow():
     """Test flow characterization.
     """
-    test = Flow(diameter, PD, c, L)
-    test.guess = N
+    test = Flow(radius, PD, c, L)
+    test.guess_channels = N
     # get geom
     test.set_geom()
-    # expected values
-    exp_G = m_dot / (test.A_flow * N)
-    exp_v = exp_G / rho_cool
-    exp_Re = rho_cool * exp_v * test.D_e / mu
-    exp_Pr = Cp_cool * mu / k_cool
-    exp_Nu = 0.023*math.pow(exp_Re, 0.8)*math.pow(exp_Pr, 0.4)
+    # expected flow velocity
+    exp_G = test.fps.m_dot / (test.A_flow * N)
+    exp_v = exp_G / test.fps.rho
+    # expected heat transfer coefficient
+    exp_Re = test.fps.rho * exp_v * test.D_e / test.fps.mu
+    exp_Nu = 0.023*math.pow(exp_Re, 0.8)*math.pow(test.fps.Pr, 0.4)
     exp_f = 0.184 / math.pow(exp_Re, 0.2)
-    exp_h = exp_Nu * k_cool / test.D_e
+    exp_h = exp_Nu * test.fps.k_cool / test.D_e
     # calculated values
     test.characterize_flow()
     # compare
-    assert exp_G == test.G_dot
     assert exp_v == test.v
-    assert exp_Re == test.Re
-    assert exp_Nu == test.Nu
     assert exp_f == test.f
     assert exp_h == test.h_bar
 
@@ -59,13 +55,13 @@ def test_characterize_flow():
 def test_q():
     """Test q_per_channel calculation.
     """
-    test = Flow(diameter, PD, c, L)
-    test.guess = N
+    test = Flow(radius, PD, c, L)
+    test.guess_channels = N
     # get geom and flow conditions
     test.set_geom()
     test.characterize_flow()
     # expected value
-    exp_q_per_channel = 22608.9
+    exp_q_per_channel = 2.43123E+04
     test.get_q_per_channel()
     # compare
     assert abs(exp_q_per_channel - test.q_per_channel) < 1.0
@@ -74,12 +70,41 @@ def test_q():
 def test_dp():
     """Test subchannel dp calculation.
     """
-    test = Flow(diameter, PD, c, L)
-    test.guess = N
+    test = Flow(radius, PD, c, L)
+    test.guess_channels = N
     test.set_geom()
     test.characterize_flow()
     test.calc_dp()
     # expected dp
-    exp_dp = test.f * L * rho_cool * test.v ** 2 / (2*test.D_e)
+    exp_dp = test.f * L * test.fps.rho * test.v ** 2 / (2*test.D_e)
     # compare
-    assert exp_dp == test.dp
+    assert (exp_dp - test.dp)**2 < 1e-5
+
+def test_flow_calc():
+    """
+    """
+    test = Flow(radius, PD, c, L)
+    oned_flow_modeling(test)
+    
+    assert math.ceil(test.N_channels) == 5
+    
+def test_rand_flow_calc():
+    # random check oned_flow_modeling
+    rand_r = uniform(0.005, 0.01)
+    rand_PD = uniform(1.1, 2)
+    rand_L = uniform(0.15, 0.5)
+
+    obs = Flow(rand_r, rand_PD, c, rand_L)
+    oned_flow_modeling(obs)
+    # check result manually
+    exp = Flow(rand_r, rand_PD, c, rand_L)
+    exp.guess_channels = obs.N_channels
+    # get geom and flow conditions
+    exp.set_geom()
+    exp.characterize_flow()
+    # expected value
+    exp.get_q_per_channel()
+    
+    assert abs(exp.q_per_channel - obs.q_per_channel) < 1.0
+    
+    
