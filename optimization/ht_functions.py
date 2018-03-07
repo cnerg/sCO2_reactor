@@ -335,7 +335,7 @@ class ParametricSweep():
         # calculate appropriate step sizes given range
         R_step = (radii[1] - radii[0]) / self.N
         PD_step = (pds[1] - pds[0]) / self.N
-        # ranges for radois and pitch/diameter ratio
+        # ranges for radius and pitch/diameter ratio
         R_array = np.arange(radii[0], radii[1], R_step)
         PD_array = np.arange(pds[0], pds[1], PD_step)
 
