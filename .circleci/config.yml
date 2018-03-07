@@ -1,0 +1,19 @@
+version: 2
+
+jobs:
+    test:
+        docker:
+            - image: circleci/python:3.6.1
+        steps:
+            - checkout
+            - run: sudo pip install pytest numpy scipy
+            - run:
+                 name: run tests
+                 command: |
+                     cd ./optimization
+                     pytest
+workflows:
+    version: 2
+    test:
+        jobs:
+            - test
