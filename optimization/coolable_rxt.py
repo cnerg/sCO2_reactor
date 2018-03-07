@@ -32,6 +32,7 @@ def main():
     oned_flow_modeling(test)
     # print results
     data = test.__dict__
+    del data['fps']
     data = {str(round(data[key], 3)) for key in sorted(data.keys())}
     print(data)
 

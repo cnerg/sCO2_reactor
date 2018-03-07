@@ -5,7 +5,7 @@ import operator
 import sys
 from scipy.optimize import minimize, minimize_scalar
 # Import physical constants
-import physical_constants as pc
+from physical_constants import const, FlowProperties
 
 
 def oned_flow_modeling(analyze_flow):
@@ -71,19 +71,12 @@ class Flow:
     transfer/fluid flow problem on a CERMET Flow Channel.
     """
     savedata = {'mass': ("Total Fuel Mass", "m [kg]"),
-                'Re': ("Reynolds Number", "Re [-]"),
-                'G_dot': ("Reactor Mass Flux", "G_dot [kg/m^2-s]"),
                 'N_channels': ("Number of Fuel Channels", "N Channels [-]"),
-                'Nu': ("Nusselt Number", "Nu [-]"),
                 'dp': ("Subchannel Pressure Drop", "dP [Pa]"),
                 'h_bar': ("Heat Transfer Coefficient", "h [W / m^2 - K]"),
                 'q_per_channel': ("Total Subchannel Generation", "q/channel [W]"),
                 'q_bar': ("Average Volumetric Generation", "q_bar [W/m^3]"),
                 'v': ("Flow Velocity", "v [m/s]"),
-                'R_fuel': ("Resistance to Conduction in Fuel", "R_fuel [K/W]"),
-                'R_clad': ("Resistance to Conduction in Clad", "R_clad [K/W]"),
-                'R_conv': ("Resistance to Convection", "R_conv [K/W]"),
-                'R_tot': ("Total Resistance to Heat Transfer", "R_tot [K/W]"),
                 'AR': ("Approximate Core Aspect Ratio", "AR [-]")
                }
 
@@ -104,27 +97,19 @@ class Flow:
     N_channels = 0  # number of required fuel channels for given flow conditions
 
     # flow parameters
-    Re = 0  # Reynold's number
-    G_dot = 0  # mass flux
     D_e = 0  # hydraulic diameter
     v = 0  # flow velocity
     dp = 0  # channel pressure drop
 
     # heat transfer attributes
-    dt = pc.T_centerline - pc.T_bulk  # temp. drop fuel -> coolant
     h_bar = 0  # average heat transfer coefficient
-    Nu = 0  # Nusselt number
     f = 0  # friction factor
-    R_fuel = 0  # resistance to conduction in fuel
-    R_clad = 0  # resistance to conduction in clad
-    R_conv = 0  # resistance to convection to cool
-    R_tot = 0  # total resistance to heat transfer
 
     # heat generation
     q_bar = 0  # axially-averaged volumetric generation
     q_per_channel = 0  # generation per fuel channel
 
-    def __init__(self, diameter, PD, c, L):
+    def __init__(self, diameter, PD, c, L, flowprops=FlowProperties()):
         """Initialize the flow iteration class.
 
         Initialized Attributes:
@@ -144,6 +129,8 @@ class Flow:
         # get equivalent annular radii for q_bar calculations
         self.r_i = self.r_channel + self.c
         self.r_o = self.pitch / math.sqrt(3)
+        self.fps = flowprops
+        self.dT = const['T_center'] - self.fps.T  # temp. drop fuel -> coolant
 
     def set_geom(self):
         """Setup the problem geometry.
@@ -168,25 +155,22 @@ class Flow:
 
         Modified Attributes:
         --------------------
-            G_dot: mass flux through all flow channels [kg/m^2-s]
             v: flow velocity [m/s]
-            Re: Reynolds number [-]
             f: friction factor [-]
-            Nu: Nusselt number [-]
             h_bar: heat transfer coefficient [W/m^2-K]
         """
         # calculate mass flux
-        self.G_dot = pc.m_dot / (self.A_flow * self.guess_channels)
+        G_dot = self.fps.m_dot / (self.A_flow * self.guess_channels)
         # calculate flow velocity from mass flux
-        self.v = self.G_dot / pc.rho_cool
+        self.v = G_dot / self.fps.rho
         # calculate Reynolds Number
-        self.Re = pc.rho_cool * self.v * self.D_e / pc.mu
-        # Darcy-Weisbach friction factor for pressure drop correlation El Wakil (9-4)
-        self.f = 0.184 / math.pow(self.Re, 0.2)
+        Re = self.fps.rho * self.v * self.D_e / self.fps.mu
         # Dittus-Boelter equation (9-22) from El-Wakil
-        self.Nu = 0.023*math.pow(self.Re, 0.8)*math.pow(pc.Pr, 0.4)
+        Nu = 0.023*math.pow(Re, 0.8)*math.pow(self.fps.Pr, 0.4)
         # heat transfer coefficient
-        self.h_bar = self.Nu * pc.k_cool / self.D_e
+        self.h_bar = Nu * self.fps.k_cool / self.D_e
+        # Darcy-Weisbach friction factor for pressure drop correlation El Wakil (9-4)
+        self.f = 0.184 / math.pow(Re, 0.2)
 
     def get_q_per_channel(self):
         """Calculate achievable average volumetric generation:
@@ -210,26 +194,27 @@ class Flow:
         """
 
         # El Wakil (6-62) calculates max q''' at axial centerline
-        self.R_fuel = (self.r_o**2 / (4*pc.k_fuel)) *\
-                      ((self.r_i/self.r_o)**2 - 2*math.log(self.r_i/self.r_o) - 1)
-
-        self.R_clad = (self.r_o**2)/2 * (1-(self.r_i/self.r_o)**2) *\
-            math.log(self.r_i/(self.r_i-self.c)) / pc.k_clad
-
-        self.R_conv = (self.r_o**2)/2 * (1-(self.r_i/self.r_o)**2) *\
-            1 / (self.h_bar*(self.r_i - self.c))
-
-        self.R_tot = self.R_fuel + self.R_clad + self.R_conv
+        
+        # Use resistance network to calculate q_trip_max
+        # resistance to conduction in fuel
+        R_total = (self.r_o**2 / (4*const['k_fuel'])) *\
+                 ((self.r_i/self.r_o)**2 - 2*math.log(self.r_i/self.r_o) - 1)
+        # resistance to conduction in clad
+        R_total += (self.r_o**2)/2 * (1-(self.r_i/self.r_o)**2) *\
+                    math.log(self.r_i/(self.r_i-self.c)) / const['k_clad']
+        # resistance to convection clad -> coolant
+        R_total += (self.r_o**2)/2 * (1-(self.r_i/self.r_o)**2) *\
+                  1 / (self.h_bar*(self.r_i - self.c))
 
         # calculate centerline volumetric generation
-        q_trip_max = self.dt / self.R_tot
+        q_trip_max = self.dT / R_total
 
         # consider axial flux variation
         self.q_bar = q_trip_max * 2 / math.pi
         self.q_per_channel = self.q_bar * self.A_fuel * self.L
 
         # calculate required fuel channels
-        self.N_channels = pc.Q_therm / self.q_per_channel
+        self.N_channels = self.fps.Q_therm / self.q_per_channel
 
     def calc_dp(self):
         """Calculate axial pressure drop across the reactor core.
@@ -239,15 +224,13 @@ class Flow:
             dp: core pressure drop [Pa]
         """
         # Darcy pressure drop (El-Wakil 9-3)
-        self.dp = self.f * self.L * pc.rho_cool * \
+        self.dp = self.f * self.L * self.fps.rho * \
             self.v * self.v / (2*self.D_e)
 
     def adjust_dp(self):
         """Check for pressure constraint. This method calls calc_dp() to get
         the pressure drop in the current condition. It checks the dp against the
-                self.r = radius
-        self.PD = PD
-power cycle-constrained allowable dp. If the pressure is too high, it
+        power cycle-constrained allowable dp. If the pressure is too high, it
         adjusts N_channels to the min N_channels that satisfies the dp
         constraint.
 
@@ -258,7 +241,7 @@ power cycle-constrained allowable dp. If the pressure is too high, it
         """
 
         self.calc_dp()
-        while self.dp > pc.dp_allowed:
+        while self.dp > self.fps.dp_limit:
             # set N_channels and guess_channels
             self.guess_channels = self.get_dp_constrained_Nchannels()
             self.N_channels = self.guess_channels
@@ -277,10 +260,10 @@ power cycle-constrained allowable dp. If the pressure is too high, it
         --------
             req_channels: Min N_channels required to meet dp constraint [-].
         """
-        v_req = math.sqrt(2*self.D_e * pc.dp_allowed /
-                          (self.f * self.L * pc.rho_cool))
+        v_req = math.sqrt(2*self.D_e * self.fps.dp_limit /
+                          (self.f * self.L * self.fps.rho))
         req_channels = math.ceil(
-            pc.m_dot / (self.A_flow * pc.rho_cool * v_req))
+            self.fps.m_dot / (self.A_flow * self.fps.rho * v_req))
 
         return req_channels
 
@@ -323,7 +306,7 @@ power cycle-constrained allowable dp. If the pressure is too high, it
             mass: total fuel mass[kg]
         """
         self.Vol_fuel = self.A_fuel * self.L * self.N_channels
-        self.mass = self.Vol_fuel * pc.rho_fuel
+        self.mass = self.Vol_fuel * const['rho_fuel']
 
 
 class ParametricSweep():
@@ -347,7 +330,7 @@ class ParametricSweep():
                                          ['r', 'pd'],
                                          'formats': ['f8']*N_cats})
 
-    def sweep_geometric_configs(self, diams, pds, z, c):
+    def sweep_geometric_configs(self, diams, pds, z, c, props=None):
         """Perform parametric sweep through pin cell geometric space. Calculate the
         minimum required mass for TH purposes at each point.
         """
@@ -364,12 +347,10 @@ class ParametricSweep():
         # sweep through parameter space, calculate min mass
         for i in range(self.N):
             for j in range(self.N):
-                flowdata = Flow(D_mesh[i, j], PD_mesh[i, j], c, z)
+                flowdata = Flow(D_mesh[i, j], PD_mesh[i, j], c, z, props)
                 oned_flow_modeling(flowdata)
                 self.save_iteration(flowdata, i, j)
 
-        self.get_min_mass()
-        self.disp_min_mass()
         
     def save_iteration(self, iteration, i, j):
         """ Save the data from each iteration of the parametric sweep. 
