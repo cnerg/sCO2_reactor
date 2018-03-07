@@ -6,7 +6,7 @@ jobs:
             - image: circleci/python:3.6.1
         steps:
             - checkout
-            - run: sudo pip install pytest
+            - run: sudo pip install pytest numpy scipy
             - run:
                  name: run tests
                  command: |
