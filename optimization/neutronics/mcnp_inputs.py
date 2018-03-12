@@ -1,9 +1,10 @@
+import numpy as np
 import math
 import tarfile
 import os
 import sys
 import argparse
-from base_input import base_string
+from base_input import base_string, base_submit
 
 def merge_comps(compA, compB):
     """
@@ -16,6 +17,18 @@ def merge_comps(compA, compB):
 
     return compA
 
+def write_htc_submit(htc_path, mem=300, disk=30):
+    """Write the htc submit script
+    """
+    templ = base_submit
+    string = templ.substitute(htc_dir = htc_path,
+                              mem = mem,
+                              disk = disk,
+                              sym = '$')
+    subfile = open('depletion_submit.sub', 'w')
+    subfile.write(string)
+    subfile.close()
+
 class HomogeneousInput:
     """Class to write MCNP input files for pin cell modeling in an infinite
     lattice (in the x-y directions).
@@ -24,26 +37,26 @@ class HomogeneousInput:
     # base template string modified by the methods below
     base_string = base_string
 
-    def __init__(self, radius, length):
+    def __init__(self, radius, volfrac_fuel, length):
         """Initialize parameters.
         """
         self.L = length
         self.r = radius
+        self.frac_fuel = volfrac_fuel
         self.vol = self.r**2 * math.pi * self.L
-        self.refl_t = 0.5 * self.r
-        self.z_ref_t = self.L * 0.5
+        self.refl_t = 15 # 15 cm reflector
         self.vol_refl = ((self.r + self.refl_t)**2 - self.r**2)*math.pi * self.L
     
-    def homogenize_fuel_clad_cool(self, frac_fuel, enrich=0.9):
+    def homogenize_fuel_clad_cool(self, enrich=0.9):
         """
         """
-        ############ Channel Dimensions ##############
-        # Radius = 0.5 cm, clad_thick = 0.0031       #
-        clad_to_cool = 0.127844                      #
-        frac_clad = (1 - frac_fuel) * clad_to_cool   # 
-        frac_cool = 1 - frac_clad - frac_fuel        #
-        uran_frac = 0.6 # UN in tungsten             #
-        ##############################################
+        ############ Channel Dimensions ################
+        # Radius = 0.5 cm, clad_thick = 0.0031         #
+        clad_to_cool = 0.127844                        #
+        frac_clad = (1 - self.frac_fuel) * clad_to_cool# 
+        frac_cool = 1 - frac_clad - self.frac_fuel     #
+        uran_frac = 0.6 # UN in tungsten               #
+        ################################################
 
         # densities
         rho_W = 19.3
@@ -52,8 +65,8 @@ class HomogeneousInput:
         rho_In = 8.19
 
         # volume-weighted densities
-        mass_fuel = frac_fuel * uran_frac * rho_UN
-        mass_matr = frac_fuel * (1 - uran_frac) * rho_W
+        mass_fuel = self.frac_fuel * uran_frac * rho_UN
+        mass_matr = self.frac_fuel * (1 - uran_frac) * rho_W
         mass_cool = frac_cool * rho_cool
         mass_clad = frac_clad * rho_In
         # smeared density
@@ -121,10 +134,6 @@ class HomogeneousInput:
             self.fuel_string += "     {0} -{1}{2}".format(isotope,
                     round(homog_comp[isotope], 7), endline)
         
-        print(self.fuel_string)
-        
-        
-
     def write_input(self):
         """ Write MCNP6 input files.
         This function writes the MCNP6 input files for the leakage experiment using
@@ -135,14 +144,15 @@ class HomogeneousInput:
         file_string = templ.substitute(r_core = self.r,
                                        core_z = self.L,
                                        r_refl = self.r + self.refl_t,
-                                       refl_min = -self.z_ref_t,
-                                       refl_max = self.L + self.z_ref_t,
+                                       refl_min = -self.refl_t,
+                                       refl_max = self.L + self.refl_t,
                                        fuel_vol = self.vol,
                                        fuel_rho = self.rho,
                                        fuel_string = self.fuel_string,
                                        refl_vol = self.vol_refl)
         # write the file
-        filename = 'r_{0}_{1}.i'.format(self.r, self.L)
+        filename = './inputs/r_{0}_{1}.i'.format(round(self.frac_fuel, 3), 
+                                                 round(self.r, 3))
         ifile = open(filename, 'w')
         ifile.write(file_string)
         ifile.close()
@@ -150,6 +160,28 @@ class HomogeneousInput:
         return filename
 
 if __name__ == '__main__':
-   test = HomogeneousInput(30,25)
-   test.homogenize_fuel_clad_cool(0.6)
-   test.write_input()
+    os.system("mkdir inputs")
+    os.system("mkdir output")
+    os.system("mkdir error")
+    os.system("mkdir log")
+    tarball = tarfile.open('radius_fuelfrac_depl_length_25.tar.gz', 'w|gz')
+    input_list = open('input_list.txt', 'w')
+    write_htc_submit('/home/aaswenson/depletion/length_25_cm')
+    tarball.add('send_install_run_mcnp.bash')
+    tarball.add('depletion_submit.sub')
+    
+    for fuel_frac in np.arange(0.1, 0.6, 0.05):
+        for core_r in np.arange(10, 50, 1):
+            input = HomogeneousInput(core_r, fuel_frac, 25)
+            input.homogenize_fuel_clad_cool()
+            filename = input.write_input()
+            input_list.write(filename + '\n')
+
+    input_list.close()
+    tarball.add("inputs")
+    tarball.add("output")
+    tarball.add("error")
+    tarball.add("log")
+    tarball.add('input_list.txt')
+
+    os.system("rm *.i")
