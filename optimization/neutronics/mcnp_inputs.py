@@ -9,7 +9,7 @@ def merge_comps(compA, compB):
     """
     """
     for isotope in compB:
-        if isotope in compA.keys():
+        if isotope in compA:
             compA[isotope] += compB[isotope]
         else:
             compA.update({isotope : compB[isotope]})
@@ -37,25 +37,28 @@ class HomogeneousInput:
     def homogenize_fuel_clad_cool(self, frac_fuel, enrich=0.9):
         """
         """
-        ############ Channel Dimensions ########
-        # Radius = 0.5 cm, clad_thick = 0.0031 #
-        clad_to_cool = 0.127844                #
-        frac_cool = 1 - frac_fuel              #
-        frac_clad = frac_cool * clad_to_cool   #
-        uran_frac = 0.6 # UN in tungsten       #
-        ########################################
+        ############ Channel Dimensions ##############
+        # Radius = 0.5 cm, clad_thick = 0.0031       #
+        clad_to_cool = 0.127844                      #
+        frac_clad = (1 - frac_fuel) * clad_to_cool   # 
+        frac_cool = 1 - frac_clad - frac_fuel        #
+        uran_frac = 0.6 # UN in tungsten             #
+        ##############################################
+
         # densities
         rho_W = 19.3
-        rho_cool = 87.8
+        rho_cool = 0.087
         rho_UN = 11.3 # g/cc
         rho_In = 8.19
-        
+
+        # volume-weighted densities
         mass_fuel = frac_fuel * uran_frac * rho_UN
         mass_matr = frac_fuel * (1 - uran_frac) * rho_W
         mass_cool = frac_cool * rho_cool
         mass_clad = frac_clad * rho_In
-        mass_total = mass_fuel + mass_matr + mass_cool + mass_clad
-
+        # smeared density
+        self.rho = mass_fuel + mass_matr + mass_cool + mass_clad
+        
         # fuel mass fractions
         U_fraction = {'U' : 0.94441, 'N' : 0.05559}
         Uran_comp =  {'235' : enrich, '238' : 1 - enrich}
@@ -72,7 +75,7 @@ class HomogeneousInput:
                      74186 : 2.8757e-01
                     }
 
-        clad_comp = {6000   : 0.00073,
+        clad_comp = {#6000   : 0.00073,
                      13027  : 0.005,
                      14000  : 0.00318,
                      15031  : 0.00014,
@@ -92,34 +95,34 @@ class HomogeneousInput:
                      8016 : 0.727088
                     }
 
-
-        components = [fuel_comp, matr_comp, clad_comp, cool_comp]
         
         # get isotopic masses for fuel, matrix, coolant, cladding
-        print(fuel_comp)
-        fuel_comp = {isotope : fuel_comp[isotope] 
-                     * mass_fuel for isotope in fuel_comp}
-        print(fuel_comp)
-        matr_comp = {isotope : matr_comp[isotope] 
-                     * mass_matr for isotope in matr_comp}
-        clad_comp = {isotope : clad_comp[isotope]
-                     * mass_clad for isotope in clad_comp}
-        cool_comp = {isotope : cool_comp[isotope]
-                     * mass_cool for isotope in cool_comp}
+        fuel_mfrac = {isotope : fuel_comp[isotope] 
+                     * (mass_fuel / self.rho) for isotope in fuel_comp}
+        matr_mfrac = {isotope : matr_comp[isotope] 
+                     * (mass_matr / self.rho) for isotope in matr_comp}
+        clad_mfrac = {isotope : clad_comp[isotope]
+                     * (mass_clad / self.rho) for isotope in clad_comp}
+        cool_mfrac = {isotope : cool_comp[isotope]
+                     * (mass_cool / self.rho) for isotope in cool_comp}
 
         homog_comp = {}
+        components = [fuel_mfrac, matr_mfrac, clad_mfrac, cool_mfrac]
         for frac in components:
             homog_comp = merge_comps(homog_comp, frac)
         
         # write the mcnp string
-        self.fuel_string = "\
-m1\n"
-        for isotope in sorted(homog_comp.keys()):
-            self.fuel_string += "    {0} -{1}\n".format(isotope,
-                    round(homog_comp[isotope] / mass_total, 7))
-
+        self.fuel_string = "m1\n"
+        endline = '\n'
+        # loop through isotopes
+        for idx, isotope in enumerate(sorted(homog_comp.keys())):
+            if idx == len(homog_comp.keys()) - 1:
+                endline = ''
+            self.fuel_string += "    {0} -{1}{2}".format(isotope,
+                    round(homog_comp[isotope], 7), endline)
+        
         print(self.fuel_string)
-
+        
         
 
     def write_input(self):
