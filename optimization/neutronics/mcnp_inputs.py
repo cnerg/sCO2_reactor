@@ -57,7 +57,7 @@ class HomogeneousInput:
         mass_cool = frac_cool * rho_cool
         mass_clad = frac_clad * rho_In
         # smeared density
-        self.rho = mass_fuel + mass_matr + mass_cool + mass_clad
+        self.rho = round(mass_fuel + mass_matr + mass_cool + mass_clad, 5)
         
         # fuel mass fractions
         U_fraction = {'U' : 0.94441, 'N' : 0.05559}
@@ -118,7 +118,7 @@ class HomogeneousInput:
         for idx, isotope in enumerate(sorted(homog_comp.keys())):
             if idx == len(homog_comp.keys()) - 1:
                 endline = ''
-            self.fuel_string += "    {0} -{1}{2}".format(isotope,
+            self.fuel_string += "     {0} -{1}{2}".format(isotope,
                     round(homog_comp[isotope], 7), endline)
         
         print(self.fuel_string)
@@ -138,6 +138,8 @@ class HomogeneousInput:
                                        refl_min = -self.z_ref_t,
                                        refl_max = self.L + self.z_ref_t,
                                        fuel_vol = self.vol,
+                                       fuel_rho = self.rho,
+                                       fuel_string = self.fuel_string,
                                        refl_vol = self.vol_refl)
         # write the file
         filename = 'r_{0}_{1}.i'.format(self.r, self.L)
@@ -148,5 +150,6 @@ class HomogeneousInput:
         return filename
 
 if __name__ == '__main__':
-   test = HomogeneousInput(15,15)
+   test = HomogeneousInput(30,25)
    test.homogenize_fuel_clad_cool(0.6)
+   test.write_input()
