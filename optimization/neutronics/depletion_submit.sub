@@ -18,7 +18,7 @@ should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
 
 # Indicate the executable to be run and any other input files needed
-executable = /home/aaswenson/depletion/length_25_cm/mcnp_run_tar_send.bash
+executable = /home/aaswenson/depletion/length_25_cm/send_install_run_mcnp.bash
 transfer_input_files = /home/aaswenson/depletion/length_25_cm/mcnp_run_tar_send.bash, /home/aaswenson/depletion/length_25_cm/inputs/$(comp_file)
 
 # Command line arguments for the executable
