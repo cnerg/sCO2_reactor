@@ -33,9 +33,6 @@ class HomogeneousInput:
     """Class to write homogeneous MCNP burnup input files.
     """
     
-    # base template string modified by the methods below
-    base_string = base_string
-
     def __init__(self, radius, volfrac_fuel, length):
         """Initialize parameters.
         """
@@ -151,7 +148,7 @@ class HomogeneousInput:
         the template input string. It writes a bare and reflected core input file
         for each core radius.
         """
-        templ = self.base_string
+        templ = base_string
         file_string = templ.substitute(r_core = self.r,
                                        core_z = self.L,
                                        r_refl = self.r + self.refl_t,
