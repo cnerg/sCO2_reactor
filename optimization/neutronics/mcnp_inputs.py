@@ -4,6 +4,7 @@ import tarfile
 import os
 import sys
 import argparse
+import material_data as md
 from base_input import base_string
 
 def merge_comps(compA, compB):
@@ -78,52 +79,23 @@ class HomogeneousInput:
         self.rho = round(mass_fuel + mass_matr + mass_cool + mass_clad, 5)
         
         # fuel mass fractions
-        U_fraction = {'U' : 0.94441, 'N' : 0.05559}
         Uran_comp =  {'235' : enrich, '238' : 1 - enrich}
         
         # Uranium Nitride
-        fuel_comp = {7015 : U_fraction['N'],
-                     92235 : U_fraction['U'] * Uran_comp['235'],
-                     92238 : U_fraction['U'] * Uran_comp['238']
-                    }
-        # Tungsten
-        matr_comp = {74180 : 1.1746e-03,
-                     74182 : 2.6227e-01,
-                     74183 : 1.4241e-01,
-                     74184 : 3.0658e-01,
-                     74186 : 2.8757e-01
-                    }
-        # Inconel-718
-        clad_comp = {6000   : 0.00073,
-                     13027  : 0.005,
-                     14000  : 0.00318,
-                     15031  : 0.00014,
-                     16000  : 0.00014,
-                     22000  : 0.009,
-                     24000  : 0.19,
-                     25055  : 0.00318,
-                     26000  : 0.17,
-                     28000  : 0.525,
-                     27059  : 0.0091,
-                     29000  : 0.00273,
-                     41093  : 0.05125,
-                     42000  : 0.0305
-                    }
-        # Carbon Dioxide
-        cool_comp = {6000 : 0.272912,
-                     8016 : 0.727088
-                    }
+        fuel_comp = {7015 : md.UN[7015],
+                     92235 : md.UN[92000] * Uran_comp['235'],
+                     92238 : md.UN[92000] * Uran_comp['238'] }
 
         
         # get isotopic mass fractions for fuel, matrix, coolant, cladding
         fuel_mfrac = {isotope : fuel_comp[isotope] 
                      * (mass_fuel / self.rho) for isotope in fuel_comp}
-        matr_mfrac = {isotope : matr_comp[isotope] 
-                     * (mass_matr / self.rho) for isotope in matr_comp}
-        clad_mfrac = {isotope : clad_comp[isotope]
-                     * (mass_clad / self.rho) for isotope in clad_comp}
-        cool_mfrac = {isotope : cool_comp[isotope]
-                     * (mass_cool / self.rho) for isotope in cool_comp}
+        matr_mfrac = {isotope : md.W[isotope] 
+                     * (mass_matr / self.rho) for isotope in md.W}
+        clad_mfrac = {isotope : md.In[isotope]
+                     * (mass_clad / self.rho) for isotope in md.In}
+        cool_mfrac = {isotope : md.CO2[isotope]
+                     * (mass_cool / self.rho) for isotope in md.CO2}
 
         homog_comp = {}
         components = [fuel_mfrac, matr_mfrac, clad_mfrac, cool_mfrac]
