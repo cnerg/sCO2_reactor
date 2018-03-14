@@ -10,9 +10,6 @@ jobs:
             - run:
                  name: run tests
                  command: |
-                     cd ./optimization
-                     pytest
-                     cd ../neutronics
                      pytest
 workflows:
     version: 2
