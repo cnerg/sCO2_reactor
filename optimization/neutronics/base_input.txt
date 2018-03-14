@@ -1,7 +1,4 @@
-from string import Template
-# This is for r=0.5, PD=1.28, c=0.00031
-base_string = Template("""\
-MCNP6 pin cell study radius:${r_core} cm
+MCNP6 homog depltion r= ${r_core} frac= ${cool_frac}
 c Cell Card
 1 1 -${fuel_rho} -1 4 -5 imp:n=1 
 2 2 -1.7 (-2 1 -7 6):(-1 5 -7):(6 -1 -4) imp:n=1 
@@ -47,5 +44,4 @@ ksrc  0 0 1
 mode n
 F4:n 1
 E4 1E-9 10ILOG 1E-5 140ILOG 10
-print""")
-
+print

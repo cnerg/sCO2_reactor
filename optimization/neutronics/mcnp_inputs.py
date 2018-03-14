@@ -1,11 +1,6 @@
-import numpy as np
 import math
-import tarfile
-import os
-import sys
-import argparse
+from string import Template
 import material_data as md
-from base_input import base_string
 
 def merge_comps(compA, compB):
     """Merge two compositions for homogenization. Combine like isotopes when
@@ -19,7 +14,7 @@ def merge_comps(compA, compB):
 
     Returns:
     --------
-        compA (dict): union of composition A and composition B
+        compA (dict): merged comp. of A and B
     """
     for isotope in compB:
         if isotope in compA:
@@ -31,20 +26,37 @@ def merge_comps(compA, compB):
 
 
 class HomogeneousInput:
-    """Class to write homogeneous MCNP burnup input files.
+    """Write Homogeneous Input File.
+    Class to write homogeneous MCNP burnup input files.
     """
     
     def __init__(self, radius, volfrac_fuel, length):
-        """Initialize parameters.
+        """Initialize geometric reactor parameters.
+
+        Initialized Attributes:
+        -----------------------
+            z (float): reactor core height
+            r (float): reactor core radius
+            frac_fuel (float): fuel to coolant channel fraction
         """
-        self.L = length
+        self.z = length
         self.r = radius
         self.frac_fuel = volfrac_fuel
-        self.vol = self.r**2 * math.pi * self.L
         self.refl_t = 15 # 15 cm reflector
-        self.vol_refl = ((self.r + self.refl_t)**2 - self.r**2)*math.pi * self.L
+
+    def calculate_volume(self):
+        """Get volumes for core and reflector regions.
+        
+        Modified Attributes:
+        --------------------
+            vol (float): homogenized core volume
+            vol_refl (float): reflector volume
+        """
+        self.core_vol = self.r**2 * math.pi * self.z
+        self.refl_vol = ((self.r + self.refl_t)**2 - self.r**2)*math.pi * self.z
+
     
-    def homogenize_fuel_clad_cool(self, enrich=0.9):
+    def homog_core(self, enrich=0.9):
         """Homogenize the fuel, clad, and coolant.
         
         Arguments:
@@ -120,16 +132,20 @@ class HomogeneousInput:
         the template input string. It writes a bare and reflected core input file
         for each core radius.
         """
-        templ = base_string
-        file_string = templ.substitute(r_core = self.r,
-                                       core_z = self.L,
+        self.calculate_volume()
+        self.homog_core()
+        input_tmpl = open('base_input.txt')
+        templ = Template(input_tmpl.read())
+        file_string = templ.substitute(cool_frac = self.frac_fuel,
+                                       r_core = self.r,
+                                       core_z = self.z,
                                        r_refl = self.r + self.refl_t,
                                        refl_min = -self.refl_t,
-                                       refl_max = self.L + self.refl_t,
-                                       fuel_vol = self.vol,
-                                       fuel_rho = self.rho,
+                                       refl_max = self.z + self.refl_t,
                                        fuel_string = self.fuel_string,
-                                       refl_vol = self.vol_refl)
+                                       fuel_rho = self.rho,
+                                       fuel_vol = self.core_vol,
+                                       refl_vol = self.core_vol)
         # write the file
         filename = 'r_{0}_{1}.i'.format(round(self.frac_fuel, 3), 
                                                  round(self.r, 3))
