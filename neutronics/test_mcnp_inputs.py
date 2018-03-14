@@ -31,7 +31,7 @@ def test_homog_comp():
 
     # build example input file
     obs = HomogeneousInput(15, 0.6, 15)
-    obs.homogenize_fuel_clad_cool()
+    obs.homog_core()
 
     obs_str = obs.fuel_string.split('\n')
 

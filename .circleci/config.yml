@@ -13,7 +13,7 @@ jobs:
                      cd ./optimization
                      pytest
                  command: |
-                     cd ../neutronics
+                     cd ./neutronics
                      pytest
 workflows:
     version: 2
