@@ -178,8 +178,7 @@ class HomogeneousInput:
                                        refl_vol = self.core_vol,
                                        thermal_power = self.Q_therm)
         # write the file
-        filename = 'r_{0}_{1}.i'.format(round(self.vfrac_cermet, 3), 
-                                                 round(self.r, 3))
+        filename = '{0}.i'.format(file_num)
         ifile = open(filename, 'w')
         ifile.write(file_string)
         ifile.close()

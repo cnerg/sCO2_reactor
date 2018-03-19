@@ -15,7 +15,7 @@ c Surface Card
 c Data Card
 c
 c Burnup
-burn time=0.25 0.5 9R 10 5R 100 3R 365.25 8R power=${thermal_power} pfrac=1 29R 
+burn time=0.25 65 300 365.25 8R power=${core_power} pfrac=1 11R 
         bopt=1 14 -1 mat= 1
       omit= -1 128  66159 67163 67164 67166 68163 68165 68169 69166   
          69167 69171 69172 69173 70168 70169 70170 70171 70172 70173  
