@@ -18,10 +18,10 @@ def merge_comps(compA, compB):
     """
     for isotope in compB:
         if isotope in compA:
-            compA[isotope] += compB[isotope]
+            compA[isotope] += compB[isotope] 
         else:
             compA.update({isotope : compB[isotope]})
-
+    
     return compA
 
 
@@ -30,7 +30,7 @@ class HomogeneousInput:
     Class to write homogeneous MCNP burnup input files.
     """
     
-    def __init__(self, radius, volfrac_fuel, length):
+    def __init__(self, radius, length, thick_refl=15):
         """Initialize geometric reactor parameters.
 
         Initialized Attributes:
@@ -41,22 +41,44 @@ class HomogeneousInput:
         """
         self.z = length
         self.r = radius
-        self.frac_fuel = volfrac_fuel
-        self.refl_t = 15 # 15 cm reflector
+        self.refl_t = thick_refl
 
-    def calculate_volume(self):
-        """Get volumes for core and reflector regions.
+    def calc_vol_vfrac(self, r_cool, PD, c):
+        """Get volumes for core and reflector regions. Calculate the volume
+        fraction of core components. The volume fractions are used to homogenize
+        the core material.
         
         Modified Attributes:
         --------------------
-            vol (float): homogenized core volume
-            vol_refl (float): reflector volume
+            core_vol (float): homogenized core volume
+            refl_vol (float): reflector volume
+            vfrac_cool (float): coolant volume fraction
+            vfrac_cermet (float): cermet matrix volume fraction
+            vfrac_clad (float): cladding volume fraction
         """
+        # core and reflector volume required for depletion calculation
         self.core_vol = self.r**2 * math.pi * self.z
         self.refl_vol = ((self.r + self.refl_t)**2 - self.r**2)*math.pi * self.z
+        
+        pitch = 2*r_cool*PD
+        # calculate 'volumes' for fixed length
+        v_cool = (r_cool ** 2 * math.pi)
+        # clad volume fraction
+        v_clad = ((r_cool + c)**2 - r_cool**2)*math.pi
+        # fuel volume fraction
+        v_cermet = (math.sqrt(3)*pitch**2 / 2.0) - (r_cool + c) ** 2 * math.pi 
 
-    
-    def homog_core(self, enrich=0.9):
+        cell_vol = v_cool + v_clad + v_cermet
+        # calculate vfracs from total cell volume
+        self.vfrac_cool = v_cool / cell_vol
+        self.vfrac_clad = v_clad / cell_vol
+        self.vfrac_cermet = v_cermet / cell_vol
+        
+        print(self.vfrac_cool)
+        print(self.vfrac_clad)
+        print(self.vfrac_cermet)
+        
+    def homog_core(self, enrich=0.9, r_cool=0.5, PD=1.48, rho_cool=0.087, c=0.031):
         """Homogenize the fuel, clad, and coolant.
         
         Arguments:
@@ -66,65 +88,66 @@ class HomogeneousInput:
         Modified Attributes:
         --------------------
             rho (float): fuel density
-            fuel_string (str): mcnp-style fuel string
+        
+        Returns:
+        --------
+            homog_comp (dict): homogenized, isotopic, core composition (mass %)
         """
-        ############ Channel Dimensions ################
-        # Radius = 0.5 cm, clad_thick = 0.0031         #
-        clad_to_cool = 0.127844                        #
-        frac_clad = (1 - self.frac_fuel) * clad_to_cool# 
-        frac_cool = 1 - frac_clad - self.frac_fuel     #
-        uran_frac = 0.6 # UN in tungsten               #
-        ################################################
-
-        # densities
-        rho_W = 19.3
-        rho_cool = 0.087
-        rho_UN = 11.3 # g/cc
-        rho_In = 8.19
-
-        # volume-weighted densities
-        mass_fuel = self.frac_fuel * uran_frac * rho_UN
-        mass_matr = self.frac_fuel * (1 - uran_frac) * rho_W
-        mass_cool = frac_cool * rho_cool
-        mass_clad = frac_clad * rho_In
+        # get volumes, volume fractions
+        self.calc_vol_vfrac(r_cool, PD, c)
+        # volume-weighted densities/masses
+        mfrac_fuel = self.vfrac_cermet * md.vfrac_UN * md.rho_UN
+        mfrac_matr = self.vfrac_cermet * (1 - md.vfrac_UN) * md.rho_W
+        mfrac_cool = self.vfrac_cool * rho_cool
+        mfrac_clad = self.vfrac_clad * md.rho_In
         # smeared density
-        self.rho = round(mass_fuel + mass_matr + mass_cool + mass_clad, 5)
+        self.rho = round(mfrac_fuel + mfrac_matr + mfrac_cool + mfrac_clad, 5)
         
-        # fuel mass fractions
-        Uran_comp =  {'235' : enrich, '238' : 1 - enrich}
-        
-        # Uranium Nitride
-        fuel_comp = {7015 : md.UN[7015],
-                     92235 : md.UN[92000] * Uran_comp['235'],
-                     92238 : md.UN[92000] * Uran_comp['238'] }
+        # get UN composition
+        fuel_comp = md.enrich_fuel(enrich)
 
-        
+        components = {
         # get isotopic mass fractions for fuel, matrix, coolant, cladding
-        fuel_mfrac = {isotope : fuel_comp[isotope] 
-                     * (mass_fuel / self.rho) for isotope in fuel_comp}
-        matr_mfrac = {isotope : md.W[isotope] 
-                     * (mass_matr / self.rho) for isotope in md.W}
-        clad_mfrac = {isotope : md.In[isotope]
-                     * (mass_clad / self.rho) for isotope in md.In}
-        cool_mfrac = {isotope : md.CO2[isotope]
-                     * (mass_cool / self.rho) for isotope in md.CO2}
-
-        homog_comp = {}
-        components = [fuel_mfrac, matr_mfrac, clad_mfrac, cool_mfrac]
-        # homogenize the material by merging components
-        for frac in components:
-            homog_comp = merge_comps(homog_comp, frac)
+            'normed_fuel_mfrac' : {iso : comp*mfrac_fuel / self.rho 
+                                 for iso, comp in fuel_comp.items()},
+            'normed_matr_mfrac' : {iso : comp*mfrac_matr / self.rho 
+                                 for iso, comp in md.W.items()},
+            'normed_clad_mfrac' : {iso : comp*mfrac_clad / self.rho 
+                                 for iso, comp in md.In.items()},
+            'normed_cool_mfrac' : {iso : comp*mfrac_cool / self.rho 
+                                 for iso, comp in md.CO2.items()}
+                     }
         
-        # write the mcnp string
+        
+        # homogenize the material by merging components
+        homog_comp = {}
+        for frac in components:
+            homog_comp = merge_comps(homog_comp, components[frac])
+        
+        return homog_comp
+
+    def write_mat_string(self, homog_comp):
+        """Write the fuel composition in MCNP-format.
+
+        Arguments:
+        ----------
+            homog_comp (dict): normalized isotopic mass fractions
+        
+        Modified Attributes:
+        --------------------
+            fuel_string (str): MCNP-style material card
+        """
+        # Initialize material card string
         self.fuel_string = "m1\n"
-        endline = '\n'
+
         # loop through isotopes and write mcnp-style mass fractions
         for idx, isotope in enumerate(sorted(homog_comp.keys())):
+            self.fuel_string += "     {0} -{1}".format(isotope,
+                    round(homog_comp[isotope], 7))
             # no endline character for last isotope
-            if idx == len(homog_comp.keys()) - 1:
-                endline = ''
-            self.fuel_string += "     {0} -{1}{2}".format(isotope,
-                    round(homog_comp[isotope], 7), endline)
+            if idx < len(homog_comp.keys()) - 1:
+                self.fuel_string += '\n'
+                
         
     def write_input(self):
         """ Write MCNP6 input files.
@@ -132,11 +155,13 @@ class HomogeneousInput:
         the template input string. It writes a bare and reflected core input file
         for each core radius.
         """
-        self.calculate_volume()
-        self.homog_core()
+        # homogenize material and write MCNP card
+        core_comp = self.homog_core()
+        self.write_mat_string(core_comp)
+        # load template, substitute parameters and write input file
         input_tmpl = open('base_input.txt')
         templ = Template(input_tmpl.read())
-        file_string = templ.substitute(cool_frac = self.frac_fuel,
+        file_string = templ.substitute(cool_frac = self.vfrac_cermet,
                                        r_core = self.r,
                                        core_z = self.z,
                                        r_refl = self.r + self.refl_t,
@@ -147,11 +172,10 @@ class HomogeneousInput:
                                        fuel_vol = self.core_vol,
                                        refl_vol = self.core_vol)
         # write the file
-        filename = 'r_{0}_{1}.i'.format(round(self.frac_fuel, 3), 
+        filename = 'r_{0}_{1}.i'.format(round(self.vfrac_cermet, 3), 
                                                  round(self.r, 3))
         ifile = open(filename, 'w')
         ifile.write(file_string)
         ifile.close()
 
         return filename
-
