@@ -8,7 +8,13 @@ depletion inputs to calculate keff at EOL.
 * enrich
 """
 from pyDOE import lhs
+import os
 import numpy as np
+import tarfile
+
+from mcnp_inputs import HomogeneousInput
+
+# set seed for reproducibility
 np.random.seed(1324291)
 
 parameters = {'core_r'  : (10, 50),         
@@ -20,7 +26,7 @@ parameters = {'core_r'  : (10, 50),
              }
 
 dim = len(parameters.keys())
-samples = 1000
+samples = 2
 
 def gen_hypercube(samples, N):
     """Generate N-dimensional latin hypercube to sample dimensional reactor
@@ -62,4 +68,33 @@ def fill_data_array(samples, parameters, cube):
     
     return test_cases
 
+def write_inputs(sampling_data):
+    """Write MCNP depletion inputs for sampled data.
+    """
+    datanames = sampling_data.dtype.names
+    tarputs = tarfile.open('smpl_mcnp_depl_inps.tar', 'w')
+    for num, sample in enumerate(sampling_data):
+        input = HomogeneousInput(sample['core_r'],
+                                 sample['core_r']*sample['AR'],
+                                 sample['power'])
+        homog_comp = input.homog_core(sample['enrich'],
+                                      sample['cool_r'],
+                                      sample['PD'])
+        input.write_mat_string(homog_comp)
+        
+        # identifying header string for post-processing
+        header_str = ''
+        for param in sorted(datanames):
+            header_str += str(round(sample[param], 5)) + ','
+        # write the input and tar it
+        filename = input.write_input(num, header_str)
+        tarputs.add(filename)
 
+    tarputs.close()
+
+
+if __name__=='__main__':
+    cube = gen_hypercube(samples, dim)
+    data = fill_data_array(samples, parameters, cube)
+    write_inputs(data)
+    os.system('rm *.i')

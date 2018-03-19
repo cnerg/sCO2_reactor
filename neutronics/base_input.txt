@@ -1,4 +1,4 @@
-MCNP6 homog depltion r= ${r_core} frac= ${cool_frac}
+${model_information}
 c Cell Card
 1 1 -${fuel_rho} -1 4 -5 imp:n=1 
 2 2 -1.7 (-2 1 -7 6):(-1 5 -7):(6 -1 -4) imp:n=1 

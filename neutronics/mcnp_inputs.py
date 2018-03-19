@@ -166,7 +166,8 @@ class HomogeneousInput:
         self.write_mat_string()
         input_tmpl = open('base_input.txt')
         templ = Template(input_tmpl.read())
-        file_string = templ.substitute(cool_frac = self.vfrac_cermet,
+        file_string = templ.substitute(model_information = header,
+                                       cool_frac = self.vfrac_cermet,
                                        r_core = self.r,
                                        core_z = self.z,
                                        r_refl = self.r + self.refl_t,
