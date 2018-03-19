@@ -9,6 +9,7 @@ depletion inputs to calculate keff at EOL.
 """
 from pyDOE import lhs
 import os
+import glob
 import numpy as np
 import tarfile
 
@@ -26,7 +27,7 @@ parameters = {'core_r'  : (10, 50),
              }
 
 dim = len(parameters.keys())
-samples = 2
+samples = 40
 
 def gen_hypercube(samples, N):
     """Generate N-dimensional latin hypercube to sample dimensional reactor
@@ -66,6 +67,10 @@ def fill_data_array(samples, parameters, cube):
             # save to ndarray
             test_cases[sample_idx][dim] = b + cube[sample_idx][dim_idx] * a
     
+    # write the data to a csv file
+    np.savetxt("data.csv", test_cases, delimiter=',',
+                header=','.join(test_cases.dtype.names))
+    
     return test_cases
 
 def write_inputs(sampling_data):
@@ -90,11 +95,22 @@ def write_inputs(sampling_data):
         filename = input.write_input(num, header_str)
         tarputs.add(filename)
 
+    # write HTC input list
+    htc_inputs = open('input_files.txt', 'w')
+    htc_inputs.write('\n'.join(glob.glob("*.i")))
+    htc_inputs.close()
+        
+    tarputs.add('input_list.txt')
+    tarputs.add('data.csv')
     tarputs.close()
 
+def write_input_list():
+    """Write input list for HTC
+    """
 
 if __name__=='__main__':
     cube = gen_hypercube(samples, dim)
     data = fill_data_array(samples, parameters, cube)
     write_inputs(data)
-    os.system('rm *.i')
+    # cleanup
+    os.system('rm *.i input_list.txt data.csv')
