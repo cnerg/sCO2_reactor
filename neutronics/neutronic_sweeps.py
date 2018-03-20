@@ -90,6 +90,7 @@ def write_inputs(sampling_data):
         # identifying header string for post-processing
         header_str = ''
         for param in sorted(datanames):
+            print(param)
             header_str += str(round(sample[param], 5)) + ','
         # write the input and tar it
         filename = input.write_input(num, header_str)
@@ -103,10 +104,6 @@ def write_inputs(sampling_data):
     tarputs.add('input_list.txt')
     tarputs.add('data.csv')
     tarputs.close()
-
-def write_input_list():
-    """Write input list for HTC
-    """
 
 if __name__=='__main__':
     cube = gen_hypercube(samples, dim)
