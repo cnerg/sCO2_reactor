@@ -158,5 +158,5 @@ def load_from_csv(datafile="depl_results.csv"):
 if __name__ == '__main__':
     save_store_data()
     data = load_from_csv()
-    plt = plot_results(data, 'power', 'keff')
+    plt = plot_results(data, 'power', 'keff', 'core_r')
     plt.show()
