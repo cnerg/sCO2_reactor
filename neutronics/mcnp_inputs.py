@@ -24,6 +24,20 @@ def merge_comps(compA, compB):
     
     return compA
 
+def norm_mfracs(comp):
+    """Normalize mass-fraction composition.
+
+    Arguments:
+    ----------
+        comp (dict): un-normalized mass vector
+    Returns:
+    --------
+        normed_comp (dict): normalized mass vector
+    """
+    tot_mass = sum(comp.values())
+    normed_comp = {iso : mass / tot_mass for iso, mass in comp.items()}
+
+    return normed_comp
 
 class HomogeneousInput:
     """Write Homogeneous Input File.
@@ -95,36 +109,36 @@ class HomogeneousInput:
         """
         # get volumes, volume fractions
         self.calc_vol_vfrac(r_cool, PD, c)
+        
         # volume-weighted densities/masses
-        mfrac_fuel = self.vfrac_cermet * md.vfrac_UN * md.rho_UN
-        mfrac_matr = self.vfrac_cermet * (1 - md.vfrac_UN) * md.rho_W
-        mfrac_cool = self.vfrac_cool * rho_cool
-        mfrac_clad = self.vfrac_clad * md.rho_In
-        # smeared density
-        self.rho = round(mfrac_fuel + mfrac_matr + mfrac_cool + mfrac_clad, 5)
+        mfuel = self.vfrac_cermet * md.vfrac_UN * md.rho_UN
+        mmatr = self.vfrac_cermet * (1 - md.vfrac_UN) * md.rho_W
+        mcool = self.vfrac_cool * rho_cool
+        mclad = self.vfrac_clad * md.rho_In
+        
+        # smeared density == vol weight. mass for norm vol fracs
+        self.rho = round(mfuel + mmatr + mcool + mclad, 5)
         
         # get UN composition
         fuel_comp = md.enrich_fuel(enrich)
 
+        # get isotopic mass vectors for fuel, matrix, coolant, cladding
         components = {
-        # get isotopic mass fractions for fuel, matrix, coolant, cladding
-            'normed_fuel_mfrac' : {iso : comp*mfrac_fuel / self.rho 
-                                 for iso, comp in fuel_comp.items()},
-            'normed_matr_mfrac' : {iso : comp*mfrac_matr / self.rho 
-                                 for iso, comp in md.W.items()},
-            'normed_clad_mfrac' : {iso : comp*mfrac_clad / self.rho 
-                                 for iso, comp in md.In.items()},
-            'normed_cool_mfrac' : {iso : comp*mfrac_cool / self.rho 
-                                 for iso, comp in md.CO2.items()}
+            'fuel' : {iso : comp*mfuel for iso, comp in fuel_comp.items()},
+            'matr' : {iso : comp*mmatr for iso, comp in md.W.items()},
+            'clad' : {iso : comp*mclad for iso, comp in md.In.items()},
+            'cool' : {iso : comp*mcool for iso, comp in md.CO2.items()}
                      }
-        
         
         # homogenize the material by merging components
         homog_comp = {}
         for frac in components:
             homog_comp = merge_comps(homog_comp, components[frac])
         
-        return homog_comp
+        # normalize the composition 
+        normed_homog_comp = norm_mfracs(homog_comp)
+
+        return normed_homog_comp
 
     def write_mat_string(self, homog_comp):
         """Write the fuel composition in MCNP-format.
@@ -148,12 +162,15 @@ class HomogeneousInput:
             if idx < len(homog_comp.keys()) - 1:
                 self.fuel_string += '\n'
                 
-        
     def write_input(self):
         """ Write MCNP6 input files.
         This function writes the MCNP6 input files for the leakage experiment using
         the template input string. It writes a bare and reflected core input file
         for each core radius.
+
+        Returns:
+        --------
+            filename (str): name of written MCNP6 input file
         """
         # homogenize material and write MCNP card
         core_comp = self.homog_core()
