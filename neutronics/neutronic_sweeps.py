@@ -107,7 +107,8 @@ def write_inputs(sampling_data):
 
 if __name__=='__main__':
     cube = gen_hypercube(samples, dim)
-    data = fill_data_array(samples, parameters, cube)
-    write_inputs(data)
+    print(cube)
+#    data = fill_data_array(samples, parameters, cube)
+#    write_inputs(data)
     # cleanup
-    os.system('rm *.i input_list.txt data.csv')
+#    os.system('rm *.i input_list.txt data.csv')

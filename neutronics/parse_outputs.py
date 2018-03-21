@@ -91,10 +91,11 @@ def parse_header_string(string):
             cool_r = float(data.split(',')[2])
             core_r = float(data.split(',')[3])
             enrich = float(data.split(',')[4])
+            power = float(data.split(',')[7])
             
             break
 
-    return [AR, PD, cool_r, core_r, enrich]
+    return [AR, PD, cool_r, core_r, enrich, power]
 
 def save_store_data(data_dir='./data/*'):
     """
@@ -112,12 +113,50 @@ def save_store_data(data_dir='./data/*'):
         data[idx]['cool_r'] = round(params[2], 5)
         data[idx]['core_r'] = round(params[3], 5)
         data[idx]['enrich'] = round(params[4], 5)
-
+        data[idx]['power'] = round(params[5], 5)
         data[idx]['keff'] = parse_keff(string)[2][-1]
         data[idx]['ave_E'] = parse_etal('1', string)[-1]
 
     np.savetxt("depl_results.csv", data, delimiter=',', fmt='%10.5f',
                header=','.join(data.dtype.names))
 
+def plot_results(data, ind, dep, colorplot=None):
+    """Generate Plots
+    """
+    label_strings = {'AR' : 'Core Aspect Ratio[-]',
+                     'PD' : 'Fuel Pitch to Coolant Channel Diameter',
+                     'cool_r' : 'Coolant Channel [cm]',
+                     'core_r' : 'Core Radius [cm]',
+                     'enrich' : 'U-235 Enrichment [-]',
+                     'power' : 'Core Thermal Power [kW]',
+                     'keff' : 'k-eff [-]',
+                     'ave_E' : 'average neutron energy [MeV]'
+                    }
+    # plot
+    fig = plt.figure()
+    if colorplot:
+        plt.scatter(data[ind], data[dep], c=data[colorplot],
+                cmap=plt.cm.get_cmap('jet', len(set(data[colorplot]))))
+        plt.colorbar(ticks=list(set(data[colorplot])), label=label_strings[colorplot])
+    else:
+        plt.scatter(data[ind], data[dep])
+    # titles and labels
+    plt.title("{0} vs. {1}".format(dep, ind))
+    plt.xlabel(label_strings[ind])
+    plt.ylabel(label_strings[dep])
+
+    return plt
+
+def load_from_csv(datafile="depl_results.csv"):
+    """load the results data from a csv.
+    """
+    data = np.genfromtxt(datafile, delimiter=',',
+            names=list(ns.parameters.keys()) + ['keff', 'ave_E'])
+    
+    return data
+
 if __name__ == '__main__':
     save_store_data()
+    data = load_from_csv()
+    plt = plot_results(data, 'power', 'keff')
+    plt.show()
