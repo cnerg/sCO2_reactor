@@ -6,8 +6,9 @@ jobs:
             - image: pyne/pyne_ubuntu_16.04
         steps:
             - checkout
-#            - run: pip install pytest numpy scipy
-            - run:
+            - run: apt-get update
+            - run: apt-get -y install python3-pip
+            - run: pip3 install pytest
                  name: run tests
                  command: |
                      pytest
