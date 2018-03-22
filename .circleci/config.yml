@@ -3,7 +3,7 @@ version: 2
 jobs:
     test:
         docker:
-            - image: circleci/python:3.6.1
+            - image: pyne/pyne_ubuntu_16.04
         steps:
             - checkout
             - run: sudo pip install pytest numpy scipy
