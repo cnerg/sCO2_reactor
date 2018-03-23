@@ -115,8 +115,8 @@ class HomogeneousInput:
                  }
         
         # get UN composition
-        fuel_comp = md.enrich_fuel(enrich)
-        comps = {'fuel' : Material(fuel_comp)*\
+        fuel_comp = md.enrich_fuel(enrich, self.matlib['Uranium Nitride'])
+        comps = {'fuel' : fuel_comp*\
                           fracs['fuel']['volfrac']*md.rho_UN}
         del fracs['fuel']
         # load non-fuel materials
@@ -136,7 +136,6 @@ class HomogeneousInput:
         homog_mat.metadata['mat_number'] = 1
         # write mcnp-form string
         self.fuel_string = homog_mat.mcnp().strip('\n')
-
 
     def write_input(self):
         """ Write MCNP6 input files.
