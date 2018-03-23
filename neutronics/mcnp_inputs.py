@@ -1,36 +1,39 @@
 import math
+from pyne.material import Material, MaterialLibrary
 from string import Template
 import material_data as md
 
-def merge_comps(compA, compB):
-    """Merge two compositions for homogenization. Combine like isotopes when
-    necessary. This function takes two input compositions, and returns the union
-    of the two compositions.
+
+def build_pyne_matlib(nucdata_file=None):
+    """Fetch pyne material from compendium.
+
+    This function builds PyNE material library
+    for UWNR non-fuel components defined in reactor_data.py
 
     Arguments:
-    ----------
-        compA (dict): first composition
-        compB (dict): second composition
-
-    Returns:
-    --------
-        compA (dict): merged comp. of A and B
+        nucdata_file (str)[-]: Filename 'nuc_data.h5' with its full path.
     """
-    for isotope in compB:
-        if isotope in compA:
-            compA[isotope] += compB[isotope]
-        else:
-            compA.update({isotope : compB[isotope]})
+    h5path = "/home/alex/.local/lib/python3.5/site-packages/pyne/nuc_data.h5"
+    
+    if nucdata_file:
+        h5path = nucdata_file
+    
+    # Initialize material libraries.
+    raw_matlib = MaterialLibrary()
 
-    return compA
-
+    # Write entire PyNE material library.
+    raw_matlib.from_hdf5(h5path,
+                         datapath="/material_library/materials",
+                         nucpath="/material_library/nucid")
+    
+    return raw_matlib
 
 class HomogeneousInput:
     """Write Homogeneous Input File.
     Class to write homogeneous MCNP burnup input files.
     """
     
-    def __init__(self, radius, volfrac_fuel, length):
+    def __init__(self, radius, length, pnnl_mats, thick_refl=15):
         """Initialize geometric reactor parameters.
 
         Initialized Attributes:
@@ -38,105 +41,117 @@ class HomogeneousInput:
             z (float): reactor core height
             r (float): reactor core radius
             frac_fuel (float): fuel to coolant channel fraction
+            matlib (MaterialLibrary): PyNE material library
         """
         self.z = length
         self.r = radius
-        self.frac_fuel = volfrac_fuel
-        self.refl_t = 15 # 15 cm reflector
+        self.refl_t = thick_refl
+        self.matlib = pnnl_mats
 
-    def calculate_volume(self):
-        """Get volumes for core and reflector regions.
+    def calc_vol_vfrac(self, r_cool, PD, c):
+        """Get volumes for core and reflector regions. Calculate the volume
+        fraction of core components. The volume fractions are used to homogenize
+        the core material.
         
         Modified Attributes:
         --------------------
-            vol (float): homogenized core volume
-            vol_refl (float): reflector volume
+            core_vol (float): homogenized core volume
+            refl_vol (float): reflector volume
+            vfrac_cool (float): coolant volume fraction
+            vfrac_cermet (float): cermet matrix volume fraction
+            vfrac_clad (float): cladding volume fraction
         """
+        # core and reflector volume required for depletion calculation
         self.core_vol = self.r**2 * math.pi * self.z
         self.refl_vol = ((self.r + self.refl_t)**2 - self.r**2)*math.pi * self.z
+        
+        pitch = 2*r_cool*PD
+        # calculate 'volumes' for fixed length
+        v_cool = (r_cool ** 2 * math.pi)
+        # clad volume fraction
+        v_clad = ((r_cool + c)**2 - r_cool**2)*math.pi
+        # fuel volume fraction
+        v_cermet = (math.sqrt(3)*pitch**2 / 2.0) - (r_cool + c) ** 2 * math.pi 
 
-    
-    def homog_core(self, enrich=0.9):
+        cell_vol = v_cool + v_clad + v_cermet
+        # calculate vfracs from total cell volume
+        self.vfrac_cool = v_cool / cell_vol
+        self.vfrac_clad = v_clad / cell_vol
+        self.vfrac_cermet = v_cermet / cell_vol
+        
+    def homog_core(self, enrich=0.9, r_cool=0.5, 
+                         PD=1.48, rho_cool=0.087, c=0.031):
         """Homogenize the fuel, clad, and coolant.
         
         Arguments:
         ----------
-            enrich (float) (optional): uranium enrichment
+            enrich (float) (opt): uranium enrichment
+            r_cool (float) (opt): coolant channel radius
+            PD (float) (opt): pitch to diameter ratio
+            rho_cool (float) (opt): coolant density
+            c (float) (opt): claddinng thickness
         
         Modified Attributes:
         --------------------
             rho (float): fuel density
-            fuel_string (str): mcnp-style fuel string
+            fuel_string (str): MCNP material string 
         """
-        ############ Channel Dimensions ################
-        # Radius = 0.5 cm, clad_thick = 0.0031         #
-        clad_to_cool = 0.127844                        #
-        frac_clad = (1 - self.frac_fuel) * clad_to_cool# 
-        frac_cool = 1 - frac_clad - self.frac_fuel     #
-        uran_frac = 0.6 # UN in tungsten               #
-        ################################################
+        # get volumes, volume fractions
+        self.calc_vol_vfrac(r_cool, PD, c)
+        
+        # volume-weighted densities/masses
+        fracs = {'fuel' : {
+                      'volfrac' : self.vfrac_cermet*md.vfrac_UN,
+                      'rho' : md.rho_UN},
+                 'matr' : {
+                      'volfrac' : self.vfrac_cermet*(1 - md.vfrac_UN),
+                      'rho' : md.rho_W},
+                 'cool' : {
+                      'volfrac' : self.vfrac_cool,
+                      'rho' : rho_cool}, 
+                 'clad' : {
+                      'volfrac' : self.vfrac_clad,
+                      'rho' : md.rho_In}
+                 }
+        
+        # get UN composition
+        fuel_comp = md.enrich_fuel(enrich)
+        comps = {'fuel' : Material(fuel_comp)*\
+                          fracs['fuel']['volfrac']*md.rho_UN}
+        del fracs['fuel']
+        # load non-fuel materials
+        for mat in fracs:
+            comps.update({mat : self.matlib[md.mats[mat]]*\
+                                fracs[mat]['volfrac']*fracs[mat]['rho']})
+        # merge comps
+        homog_mat = Material()
+        for mat in comps:
+            homog_mat += comps[mat]
 
-        # densities
-        rho_W = 19.3
-        rho_cool = 0.087
-        rho_UN = 11.3 # g/cc
-        rho_In = 8.19
+        # for norm volume, mass == rho
+        self.rho = homog_mat.mass
+        # delete bad apple isotopes
+        del homog_mat['8018', '8017']
+        # set material number
+        homog_mat.metadata['mat_number'] = 1
+        # write mcnp-form string
+        self.fuel_string = homog_mat.mcnp().strip('\n')
 
-        # volume-weighted densities
-        mass_fuel = self.frac_fuel * uran_frac * rho_UN
-        mass_matr = self.frac_fuel * (1 - uran_frac) * rho_W
-        mass_cool = frac_cool * rho_cool
-        mass_clad = frac_clad * rho_In
-        # smeared density
-        self.rho = round(mass_fuel + mass_matr + mass_cool + mass_clad, 5)
-        
-        # fuel mass fractions
-        Uran_comp =  {'235' : enrich, '238' : 1 - enrich}
-        
-        # Uranium Nitride
-        fuel_comp = {7015 : md.UN[7015],
-                     92235 : md.UN[92000] * Uran_comp['235'],
-                     92238 : md.UN[92000] * Uran_comp['238'] }
 
-        
-        # get isotopic mass fractions for fuel, matrix, coolant, cladding
-        fuel_mfrac = {isotope : fuel_comp[isotope] 
-                     * (mass_fuel / self.rho) for isotope in fuel_comp}
-        matr_mfrac = {isotope : md.W[isotope] 
-                     * (mass_matr / self.rho) for isotope in md.W}
-        clad_mfrac = {isotope : md.In[isotope]
-                     * (mass_clad / self.rho) for isotope in md.In}
-        cool_mfrac = {isotope : md.CO2[isotope]
-                     * (mass_cool / self.rho) for isotope in md.CO2}
-
-        homog_comp = {}
-        components = [fuel_mfrac, matr_mfrac, clad_mfrac, cool_mfrac]
-        # homogenize the material by merging components
-        for frac in components:
-            homog_comp = merge_comps(homog_comp, frac)
-        
-        # write the mcnp string
-        self.fuel_string = "m1\n"
-        endline = '\n'
-        # loop through isotopes and write mcnp-style mass fractions
-        for idx, isotope in enumerate(sorted(homog_comp.keys())):
-            # no endline character for last isotope
-            if idx == len(homog_comp.keys()) - 1:
-                endline = ''
-            self.fuel_string += "     {0} -{1}{2}".format(isotope,
-                    round(homog_comp[isotope], 7), endline)
-        
     def write_input(self):
         """ Write MCNP6 input files.
         This function writes the MCNP6 input files for the leakage experiment using
         the template input string. It writes a bare and reflected core input file
         for each core radius.
+
+        Returns:
+        --------
+            filename (str): name of written MCNP6 input file
         """
-        self.calculate_volume()
-        self.homog_core()
+        # load template, substitute parameters and write input file
         input_tmpl = open('base_input.txt')
         templ = Template(input_tmpl.read())
-        file_string = templ.substitute(cool_frac = self.frac_fuel,
+        file_string = templ.substitute(cool_frac = self.vfrac_cermet,
                                        r_core = self.r,
                                        core_z = self.z,
                                        r_refl = self.r + self.refl_t,
@@ -147,7 +162,7 @@ class HomogeneousInput:
                                        fuel_vol = self.core_vol,
                                        refl_vol = self.core_vol)
         # write the file
-        filename = 'r_{0}_{1}.i'.format(round(self.frac_fuel, 3), 
+        filename = 'r_{0}_{1}.i'.format(round(self.vfrac_cermet, 3), 
                                                  round(self.r, 3))
         ifile = open(filename, 'w')
         ifile.write(file_string)
@@ -155,3 +170,8 @@ class HomogeneousInput:
 
         return filename
 
+if __name__=='__main__':
+    matlib = build_pyne_matlib()
+    test = HomogeneousInput(10, 5, matlib)
+    test.homog_core()
+    test.write_input()
