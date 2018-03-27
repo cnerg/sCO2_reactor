@@ -1,5 +1,12 @@
+import os
 from pytest import approx
 from mcnp_inputs import HomogeneousInput, build_pyne_matlib
+
+if os.environ.get('APP_ENV') == 'docker':
+    nucdata = '/root/.local/lib/python3.5/site-packages/pyne'
+    matlib = build_pyne_matlib(nucdata)
+else:
+    matlib = build_pyne_matlib()
 
 def test_homog_comp():
     """Test fuel, clad, coolant homogenization process.
@@ -60,12 +67,9 @@ def test_homog_comp():
                }
 
     # build example input file
-    matlib = build_pyne_matlib()
     obs = HomogeneousInput(15, 0.6, matlib)
     obs.homog_core()
     obs_str = obs.fuel_string.split('\n')
-    
-    print(obs.fuel_string)
     
     # extract compositions from string
     for line in obs_str:
