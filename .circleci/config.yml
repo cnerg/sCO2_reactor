@@ -3,17 +3,12 @@ version: 2
 jobs:
     test:
         docker:
-            - image: pyne/pyne_ubuntu_17.04
+            - image: aaswenson/py3_sco2_reactor_tests
         steps:
             - checkout
             - run:
                  name: run tests
                  command: |
-                     apt-get autoclean
-                     apt-get clean
-                     apt-get update
-                     apt-get install -y python3-pip
-                     pip3 install pytest numpy scipy
                      pytest
 workflows:  
     version: 2
