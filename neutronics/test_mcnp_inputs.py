@@ -1,3 +1,4 @@
+from pytest import approx
 from mcnp_inputs import HomogeneousInput, build_pyne_matlib
 
 def test_homog_comp():
@@ -8,8 +9,7 @@ def test_homog_comp():
         5011 : 1.92993563688806E-06,
         6012 : 0.001094775415103,
         6013 : 1.2830888245035E-05,
-        7014 : 0.027662570472781,
-        7015 : 0.000108256352761,
+        7015 : 0.027770827,
         8016 : 0.002851106,
         13027 : 0.000236598705025,
         14028 : 0.000138239891372,
@@ -55,20 +55,21 @@ def test_homog_comp():
         74183 : 0.063967795288825,
         74184 : 0.137709758301018,
         74186 : 0.129170836958131,
-        92235 : 0.424617184587787,
-        92238 : 0.047179687176421
+        92235 : 0.424617185,
+        92238 : 0.047179687
                }
 
     # build example input file
     matlib = build_pyne_matlib()
     obs = HomogeneousInput(15, 0.6, matlib)
-    comp = obs.homog_core()
+    obs.homog_core()
     obs_str = obs.fuel_string.split('\n')
-    print('\n'.join(obs_str))
+    
+    print(obs.fuel_string)
     
     # extract compositions from string
     for line in obs_str:
         if 'm' not in line and line != '':
             data = list(filter(None, line.split(' ')))
             print(data)
-            assert abs(exp_comp[float(data[0])] - -float(data[1])) < 1e-5
+            assert exp_comp[float(data[0])] == approx(-float(data[1]), abs=1e-5)

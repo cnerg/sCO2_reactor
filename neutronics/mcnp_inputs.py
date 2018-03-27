@@ -78,6 +78,7 @@ class HomogeneousInput:
         self.vfrac_cool = v_cool / cell_vol
         self.vfrac_clad = v_clad / cell_vol
         self.vfrac_cermet = v_cermet / cell_vol
+
         
     def homog_core(self, enrich=0.9, r_cool=0.5, 
                          PD=1.48, rho_cool=0.087, c=0.031):
@@ -113,20 +114,17 @@ class HomogeneousInput:
                       'volfrac' : self.vfrac_clad,
                       'rho' : md.rho_In}
                  }
+
+        # get UN material from custom composition
+        homog_mat = Material(md.enrich_fuel(enrich))
+        homog_mat.mass = fracs['fuel']['volfrac'] * md.rho_UN
         
-        # get UN composition
-        fuel_comp = md.enrich_fuel(enrich, self.matlib['Uranium Nitride'])
-        comps = {'fuel' : fuel_comp*\
-                          fracs['fuel']['volfrac']*md.rho_UN}
         del fracs['fuel']
         # load non-fuel materials
         for mat in fracs:
-            comps.update({mat : self.matlib[md.mats[mat]]*\
-                                fracs[mat]['volfrac']*fracs[mat]['rho']})
-        # merge comps
-        homog_mat = Material()
-        for mat in comps:
-            homog_mat += comps[mat]
+            pyne_mat = self.matlib[md.mats[mat]]
+            pyne_mat.mass = fracs[mat]['volfrac']*fracs[mat]['rho']
+            homog_mat += pyne_mat
 
         # for norm volume, mass == rho
         self.rho = homog_mat.mass

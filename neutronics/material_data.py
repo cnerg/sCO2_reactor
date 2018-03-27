@@ -11,25 +11,21 @@ mats = {'clad' : 'Inconel-718',
         'cool' : 'Carbon Dioxide',
         'matr' : 'Tungsten' }
 
-def enrich_fuel(enrich, fuel):
+def enrich_fuel(enrich):
     """Enrich Uranium fuel and mix with specified compound.
 
     Arguments:
     ----------
         enrich (float): U-235 mass conc.
-        fuel (dict) (optional): mass composition of fuel
     Returns:
     --------
         fuel_comp (dict): isotopic mass vector of Uranium fuel compound.
     """
-    # build fuel comp. starting with bounded compound
-    del fuel[92236, 92234]
+    UN = {92000 : 0.94441, 7015 : 0.05559}
     
-    comp = dict(fuel)
-    
-    mfrac_U = comp[922350000] + comp[922380000]
+    fuel = {92235 : UN[92000]*enrich,
+            92238 : UN[92000]*(1-enrich),
+            7015 : UN[7015]
+           }
 
-    fuel[922350000] = mfrac_U * enrich
-    fuel[922380000] = mfrac_U * (1-enrich)
-    
     return fuel 
