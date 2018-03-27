@@ -129,7 +129,8 @@ class HomogeneousInput:
         # for norm volume, mass == rho
         self.rho = homog_mat.mass
         # delete bad apple isotopes
-        del homog_mat['8018', '8017']
+        missing_nuclides = ['8018', '8017']
+        del homog_mat[missing_nuclides]
         # set material number
         homog_mat.metadata['mat_number'] = 1
         # write mcnp-form string
