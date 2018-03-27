@@ -9,6 +9,8 @@ jobs:
             - run:
                  name: run tests
                  command: |
+                     export APP_ENV
+                     APP_ENV=docker
                      pytest
 workflows:  
     version: 2
