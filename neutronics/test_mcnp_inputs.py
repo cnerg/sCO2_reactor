@@ -3,7 +3,7 @@ from pytest import approx
 from mcnp_inputs import HomogeneousInput, build_pyne_matlib
 
 if os.environ.get('APP_ENV') == 'docker':
-    nucdata = '/root/.local/lib/python3.5/site-packages/pyne'
+    nucdata = '/root/.local/lib/python3.5/site-packages/pyne/nuc_data.h5'
     matlib = build_pyne_matlib(nucdata)
 else:
     matlib = build_pyne_matlib()
