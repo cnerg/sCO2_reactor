@@ -100,13 +100,17 @@ def parse_header_string(string):
 def save_store_data(data_dir='./data/*'):
     """
     """
-    outstrings = load_outputs(data_dir)
+    files = glob.glob(data_dir)
+    N = len(files)
     names = list(ns.parameters.keys()) + ['keff', 'ave_E']
     types = ['f8']*len(names)
     N = len(outstrings)
     data = np.zeros(N, dtype={'names' : names, 'formats' : types})
 
-    for idx, string in enumerate(outstrings):
+    for idx, string in enumerate(files):
+        fp = open(file, 'r')
+        string = fp.readlines()
+        fp.close()
         params = parse_header_string(string)
         data[idx]['AR'] = round(params[0], 5)
         data[idx]['PD'] = round(params[1], 5)
@@ -118,8 +122,7 @@ def save_store_data(data_dir='./data/*'):
         data[idx]['ave_E'] = parse_etal('1', string)[-1]
 
     np.savetxt("depl_results.csv", data, delimiter=',', fmt='%10.5f',
-               header=','.join(data.dtype.names))
-
+  
 def plot_results(data, ind, dep, colorplot=None):
     """Generate Plots
     """
