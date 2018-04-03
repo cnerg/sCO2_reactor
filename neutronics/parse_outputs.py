@@ -1,4 +1,8 @@
+from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+import numpy as np
 import numpy as np
 import glob
 import neutronic_sweeps as ns
@@ -86,16 +90,15 @@ def parse_header_string(string):
     for line in string:
         if '1-' in line:
             data = line.split()[1]
-            AR = float(data.split(',')[0])
-            PD = float(data.split(',')[1])
-            cool_r = float(data.split(',')[2])
-            core_r = float(data.split(',')[3])
+            core_r = float(data.split(',')[0])
+            cool_r = float(data.split(',')[1])
+            PD = float(data.split(',')[2])
+            power = float(data.split(',')[3])
             enrich = float(data.split(',')[4])
-            power = float(data.split(',')[7])
             
             break
 
-    return [AR, PD, cool_r, core_r, enrich, power]
+    return [1, PD, cool_r, core_r, enrich, power]
 
 def save_store_data(data_dir='./data/*'):
     """
@@ -104,15 +107,14 @@ def save_store_data(data_dir='./data/*'):
     N = len(files)
     names = list(ns.parameters.keys()) + ['keff', 'ave_E']
     types = ['f8']*len(names)
-    N = len(outstrings)
     data = np.zeros(N, dtype={'names' : names, 'formats' : types})
 
-    for idx, string in enumerate(files):
+    for idx, file in enumerate(files):
         fp = open(file, 'r')
         string = fp.readlines()
         fp.close()
         params = parse_header_string(string)
-        data[idx]['AR'] = round(params[0], 5)
+        data[idx]['AR'] =  1
         data[idx]['PD'] = round(params[1], 5)
         data[idx]['cool_r'] = round(params[2], 5)
         data[idx]['core_r'] = round(params[3], 5)
@@ -121,7 +123,8 @@ def save_store_data(data_dir='./data/*'):
         data[idx]['keff'] = parse_keff(string)[2][-1]
         data[idx]['ave_E'] = parse_etal('1', string)[-1]
 
-    np.savetxt("depl_results.csv", data, delimiter=',', fmt='%10.5f',
+    np.savetxt("depl_results.csv", data, delimiter=',', 
+           fmt='%10.5f', header=','.join(data.dtype.names))
   
 def plot_results(data, ind, dep, colorplot=None):
     """Generate Plots
@@ -150,6 +153,24 @@ def plot_results(data, ind, dep, colorplot=None):
 
     return plt
 
+
+def surf_plot(data):
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+
+    X = data['core_r']
+    Y = data['PD']
+    Z = data['keff']
+
+    # Plot the surface.
+    ax.scatter(X,Y,Z, c=Z)
+    # Customize the z axis.
+    ax.zaxis.set_major_locator(LinearLocator(10))
+    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+
+    plt.show()
+
+
 def load_from_csv(datafile="depl_results.csv"):
     """load the results data from a csv.
     """
@@ -159,7 +180,8 @@ def load_from_csv(datafile="depl_results.csv"):
     return data
 
 if __name__ == '__main__':
-    save_store_data()
+#    save_store_data()
     data = load_from_csv()
-    plt = plot_results(data, 'power', 'keff', 'core_r')
-    plt.show()
+    surf_plot(data)
+#    plt = plot_results(data, 'core_r', 'keff', 'core_r')
+#    plt.show()
