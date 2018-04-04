@@ -105,7 +105,7 @@ def save_store_data(data_dir='./data/*'):
     """
     files = glob.glob(data_dir)
     N = len(files)
-    names = list(ns.parameters.keys()) + ['keff', 'ave_E']
+    names = list(ns.parameters.keys()) + ['keff', 'ave_E', 'mass']
     types = ['f8']*len(names)
     data = np.zeros(N, dtype={'names' : names, 'formats' : types})
 
@@ -122,6 +122,7 @@ def save_store_data(data_dir='./data/*'):
         data[idx]['power'] = round(params[5], 5)
         data[idx]['keff'] = parse_keff(string)[2][-1]
         data[idx]['ave_E'] = parse_etal('1', string)[-1]
+        data[idx]['mass']  = calc_fuel_mass(params[3], params[2], params[1])
 
     np.savetxt("depl_results.csv", data, delimiter=',', 
            fmt='%10.5f', header=','.join(data.dtype.names))
@@ -182,6 +183,6 @@ def load_from_csv(datafile="depl_results.csv"):
 if __name__ == '__main__':
 #    save_store_data()
     data = load_from_csv()
-    surf_plot(data)
-#    plt = plot_results(data, 'core_r', 'keff', 'core_r')
+#    surf_plot(data)
+    plt = plot_results(data, 'core_r', 'keff', 'core_r')
 #    plt.show()
