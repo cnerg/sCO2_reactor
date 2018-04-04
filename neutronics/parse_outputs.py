@@ -1,3 +1,5 @@
+import math
+import material_data as md
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -100,6 +102,29 @@ def parse_header_string(string):
 
     return [1, PD, cool_r, core_r, enrich, power]
 
+def calc_fuel_mass(core_r, r, PD):
+    """
+    """
+    c = 0.0031
+    l = core_r
+    core_v = math.pi*core_r*core_r*l
+
+    pitch = 2*r*PD
+    # calculate 'volumes' for fixed length
+    v_cool = (r ** 2 * math.pi)
+    # clad volume fraction
+    v_clad = ((r + c)**2 - r**2)*math.pi
+    # fuel volume fraction
+    v_cermet = (math.sqrt(3)*pitch**2 / 2.0) - (r + c) ** 2 * math.pi 
+
+    cell_vol = v_cool + v_clad + v_cermet
+    # calculate vfracs from total cell volume
+    vfrac_cermet = v_cermet / cell_vol
+    
+    fuel_vol = core_v * vfrac_cermet
+
+    return (fuel_vol * md.rho_UN) / 1000
+
 def save_store_data(data_dir='./data/*'):
     """
     """
@@ -181,8 +206,8 @@ def load_from_csv(datafile="depl_results.csv"):
     return data
 
 if __name__ == '__main__':
-#    save_store_data()
-    data = load_from_csv()
+    save_store_data()
+#    data = load_from_csv()
 #    surf_plot(data)
-    plt = plot_results(data, 'core_r', 'keff', 'core_r')
+#    plt = plot_results(data, 'core_r', 'keff', 'core_r')
 #    plt.show()
