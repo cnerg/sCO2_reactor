@@ -3,7 +3,6 @@ from pyne.material import Material, MaterialLibrary
 from string import Template
 import material_data as md
 
-
 def build_pyne_matlib(nucdata_file=None):
     """Fetch pyne material from compendium.
 
@@ -73,11 +72,11 @@ class HomogeneousInput:
         # fuel volume fraction
         v_cermet = (math.sqrt(3)*pitch**2 / 2.0) - (r_cool + c) ** 2 * math.pi 
 
-        cell_vol = v_cool + v_clad + v_cermet
-        # calculate vfracs from total cell volume
-        self.vfrac_cool = v_cool / cell_vol
-        self.vfrac_clad = v_clad / cell_vol
-        self.vfrac_cermet = v_cermet / cell_vol
+        self.cell_vol = v_cool + v_clad + v_cermet
+        # calculate normalized vfracs from total cell volume
+        self.vfrac_cool = v_cool / self.cell_vol
+        self.vfrac_clad = v_clad / self.cell_vol
+        self.vfrac_cermet = v_cermet / self.cell_vol
 
         
     def homog_core(self, enrich=0.9, r_cool=0.5, 
@@ -115,26 +114,42 @@ class HomogeneousInput:
                       'rho' : md.rho_In}
                  }
 
-        # get UN material from custom composition
-        homog_mat = Material(md.enrich_fuel(enrich))
-        homog_mat.mass = fracs['fuel']['volfrac'] * md.rho_UN
-        
-        del fracs['fuel']
-        # load non-fuel materials
+        core_mass = 0
+        # get component masses
+        for comp in fracs:
+            comp_mass = fracs[comp]['volfrac']*fracs[comp]['rho']
+            fracs[comp].update({'mass' : comp_mass})
+            core_mass += comp_mass
+            
+        self.homog_mat = Material()
+        # mix normalized mass fractions
         for mat in fracs:
-            pyne_mat = self.matlib[md.mats[mat]]
-            pyne_mat.mass = fracs[mat]['volfrac']*fracs[mat]['rho']
-            homog_mat += pyne_mat
+            # get UN material from custom composition
+            if mat == 'fuel':
+                pyne_mat = Material(md.enrich_fuel(enrich))
+            else:
+                pyne_mat = self.matlib[md.mats[mat]]
+            pyne_mat.mass = fracs[mat]['mass'] / core_mass
+            self.homog_mat += pyne_mat
+        
+        # total density [g/cc]
+        self.rho = core_mass / self.core_vol
 
-        # for norm volume, mass == rho
-        self.rho = homog_mat.mass
+    def write_mat_string(self):
+        """Prep the homogenized fuel material and write it in MCNP material card
+        format.
+
+        Modified Attributes:
+        --------------------
+            fuel_string (str): MCNP-style material card
+        """
         # delete bad apple isotopes
         missing_nuclides = ['8018', '8017']
-        del homog_mat[missing_nuclides]
+        del self.homog_mat[missing_nuclides]
         # set material number
-        homog_mat.metadata['mat_number'] = 1
+        self.homog_mat.metadata['mat_number'] = 1
         # write mcnp-form string
-        self.fuel_string = homog_mat.mcnp().strip('\n')
+        self.fuel_string = self.homog_mat.mcnp().strip('\n')
 
     def write_input(self):
         """ Write MCNP6 input files.
@@ -147,6 +162,8 @@ class HomogeneousInput:
             filename (str): name of written MCNP6 input file
         """
         # load template, substitute parameters and write input file
+        self.homog_core()
+        self.write_mat_string()
         input_tmpl = open('base_input.txt')
         templ = Template(input_tmpl.read())
         file_string = templ.substitute(cool_frac = self.vfrac_cermet,
@@ -171,5 +188,4 @@ class HomogeneousInput:
 if __name__=='__main__':
     matlib = build_pyne_matlib()
     test = HomogeneousInput(10, 5, matlib)
-    test.homog_core()
     test.write_input()
