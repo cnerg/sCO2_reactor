@@ -115,11 +115,6 @@ class HomogeneousInput:
                  }
 
         core_mass = 0
-        # get component masses
-        for comp in fracs:
-            comp_mass = fracs[comp]['volfrac']*fracs[comp]['rho']
-            fracs[comp].update({'mass' : comp_mass})
-            core_mass += comp_mass
             
         self.homog_mat = Material()
         # mix normalized mass fractions
@@ -129,9 +124,11 @@ class HomogeneousInput:
                 pyne_mat = Material(md.enrich_fuel(enrich))
             else:
                 pyne_mat = self.matlib[md.mats[mat]]
-            pyne_mat.mass = fracs[mat]['mass'] / core_mass
-            self.homog_mat += pyne_mat
+            mass = fracs[mat]['volfrac'] * fracs[mat]['rho']
+            self.homog_mat += pyne_mat * mass
+            core_mass += mass
         
+        self.homog_mat.normalize()
         # total density [g/cc]
         self.rho = core_mass / self.core_vol
 
