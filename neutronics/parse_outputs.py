@@ -5,9 +5,11 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import numpy as np
-import numpy as np
 import glob
 import neutronic_sweeps as ns
+
+names = ns.dimensions + ['keff', 'ave_E', 'mass']
+types = ['f8']*len(names)
 
 def load_outputs(data_dir):
     """Load the MCNP output file
@@ -130,8 +132,6 @@ def save_store_data(data_dir='./data/*'):
     """
     files = glob.glob(data_dir)
     N = len(files)
-    names = list(ns.parameters.keys()) + ['keff', 'ave_E', 'mass']
-    types = ['f8']*len(names)
     data = np.zeros(N, dtype={'names' : names, 'formats' : types})
 
     for idx, file in enumerate(files):
@@ -150,7 +150,7 @@ def save_store_data(data_dir='./data/*'):
         data[idx]['mass']  = calc_fuel_mass(params[3], params[2], params[1])
 
     np.savetxt("depl_results.csv", data, delimiter=',', 
-           fmt='%10.5f', header=','.join(data.dtype.names))
+           fmt='%10.5f', header=','.join(names))
   
 def plot_results(data, ind, dep, colorplot=None):
     """Generate Plots
@@ -162,20 +162,23 @@ def plot_results(data, ind, dep, colorplot=None):
                      'enrich' : 'U-235 Enrichment [-]',
                      'power' : 'Core Thermal Power [kW]',
                      'keff' : 'k-eff [-]',
-                     'ave_E' : 'average neutron energy [MeV]'
+                     'ave_E' : 'average neutron energy [MeV]',
+                     'mass' : 'reactor fuel mass [kg]'
                     }
     # plot
     fig = plt.figure()
     if colorplot:
         plt.scatter(data[ind], data[dep], c=data[colorplot],
                 cmap=plt.cm.get_cmap('jet', len(set(data[colorplot]))))
-        plt.colorbar(ticks=list(set(data[colorplot])), label=label_strings[colorplot])
+        plt.colorbar(label=label_strings[colorplot])
     else:
         plt.scatter(data[ind], data[dep])
     # titles and labels
     plt.title("{0} vs. {1}".format(dep, ind))
     plt.xlabel(label_strings[ind])
     plt.ylabel(label_strings[dep])
+    plt.yscale('log')
+    plt.xscale('log')
 
     return plt
 
@@ -200,14 +203,13 @@ def surf_plot(data):
 def load_from_csv(datafile="depl_results.csv"):
     """load the results data from a csv.
     """
-    data = np.genfromtxt(datafile, delimiter=',',
-            names=list(ns.parameters.keys()) + ['keff', 'ave_E'])
+    data = np.genfromtxt(datafile, delimiter=',', names=names)
     
     return data
 
 if __name__ == '__main__':
-    save_store_data()
-#    data = load_from_csv()
+#    save_store_data()
+    data = load_from_csv()
 #    surf_plot(data)
-#    plt = plot_results(data, 'core_r', 'keff', 'core_r')
-#    plt.show()
+    plt = plot_results(data, 'mass', 'keff', 'enrich')
+    plt.show()
