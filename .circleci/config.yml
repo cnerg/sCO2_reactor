@@ -3,16 +3,16 @@ version: 2
 jobs:
     test:
         docker:
-            - image: circleci/python:3.6.1
+            - image: aaswenson/py3_sco2_reactor_tests
         steps:
             - checkout
-            - run: sudo pip install pytest numpy scipy
             - run:
                  name: run tests
                  command: |
-                     cd ./optimization
+                     export APP_ENV
+                     APP_ENV=docker
                      pytest
-workflows:
+workflows:  
     version: 2
     test:
         jobs:
