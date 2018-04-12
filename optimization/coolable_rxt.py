@@ -33,7 +33,7 @@ def main():
     # print results
     data = test.__dict__
     del data['fps']
-    data = {str(round(data[key], 3)) for key in sorted(data.keys())}
+    data = {key : str(round(data[key], 3)) for key in sorted(data.keys())}
     print(data)
 
 if __name__ == '__main__':

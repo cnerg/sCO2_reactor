@@ -1,3 +1,4 @@
+import operator
 import math
 import material_data as md
 from mpl_toolkits.mplot3d import Axes3D
@@ -168,17 +169,19 @@ def plot_results(data, ind, dep, colorplot=None):
     # plot
     fig = plt.figure()
     if colorplot:
-        plt.scatter(data[ind], data[dep], c=data[colorplot],
-                cmap=plt.cm.get_cmap('jet', len(set(data[colorplot]))))
+        plt.scatter(data[ind], data[dep], c=data[colorplot], s=6,
+                cmap=plt.cm.get_cmap('plasma', len(set(data[colorplot]))))
         plt.colorbar(label=label_strings[colorplot])
     else:
-        plt.scatter(data[ind], data[dep])
+        plt.scatter(data[ind], data[dep], s=6)
     # titles and labels
     plt.title("{0} vs. {1}".format(dep, ind))
     plt.xlabel(label_strings[ind])
     plt.ylabel(label_strings[dep])
-    plt.yscale('log')
     plt.xscale('log')
+    plt.yscale('log')
+
+    plt.savefig('figure.png', dpi=500)
 
     return plt
 
@@ -207,9 +210,24 @@ def load_from_csv(datafile="depl_results.csv"):
     
     return data
 
+def filter_data(filters, data):
+
+    """Apply useful filters on the data
+    """
+    opers = {'less' : operator.lt,
+             'equal' : operator.eq,
+             'great' : operator.gt}
+    
+    for op in filters:
+        data = data[opers[op[1]](data[op[0]], op[2])]   
+    
+    return data
+
 if __name__ == '__main__':
 #    save_store_data()
     data = load_from_csv()
+    data = filter_data([('keff', 'great', 0.99), ('enrich', 'great', 0.85)], data)
 #    surf_plot(data)
-    plt = plot_results(data, 'mass', 'keff', 'enrich')
+    plt = plot_results(data, 'mass', 'keff', 'power')
+
     plt.show()

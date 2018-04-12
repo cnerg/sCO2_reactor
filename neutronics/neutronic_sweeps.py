@@ -20,13 +20,15 @@ from mcnp_inputs import HomogeneousInput
 np.random.seed(1324291)
 
 dimensions = ['AR', 'core_r', 'cool_r', 'PD', 'power', 'enrich']
-parameters = {'core_r'  : (10, 50, 5),         
-              'AR'      : (0.7, 1.3, 0.3),
-              'cool_r'  : (0.5, 0.8, 0.1),
-              'PD'      : (1.1, 1.5, 0.1),        
-              'power'   : (80, 200, 40),        
-              'enrich'  : (0.5, 1, 0.1)
-             }
+const_dims = ['cool_r', 'AR', 'PD', 'enrich', 'core_r']
+
+const_vals = {'AR' : 1, 'cool_r' : 0.5, 'core_r' : 20, 'enrich' : 0.9, 'PD' : 1.537}
+#parameters = {'core_r'  : (20, 50, 5),         
+#              'AR'      : (0.7, 1.3, 0.3),
+#              'PD'      : (1.4, 1.6, 0.1),        
+#              'enrich'  : (0.3, 0.9, 0.1)
+#             }
+parameters = {'power' : (80, 400, 20)}
 
 dim = len(parameters.keys())
 samples = 40
@@ -83,10 +85,9 @@ def fill_data_array(samples, parameters, cube):
             b = l_limit
             # save to ndarray
             test_cases[sample_idx][dim] = b + cube[sample_idx][dim_idx] * a
+        for dim in const_dims:
+            test_cases[sample_idx][dim] = const_vals[dim]
     
-    # write the data to a csv file
-    np.savetxt("data.csv", test_cases, delimiter=',',
-                header=','.join(test_cases.dtype.names))
     
     return test_cases
 
@@ -122,9 +123,9 @@ def write_inputs(sampling_data):
 
 if __name__=='__main__':
     cube = gen_hypercube(samples, dim)
-    data = grid_sampling()
-    print(len(data))
-#    data = fill_data_array(samples, parameters, cube)
+#    data = grid_sampling()
+#    print(len(data))
+    data = fill_data_array(samples, parameters, cube)
     write_inputs(data)
     # cleanup
     os.system('rm *.i input_list.txt')
