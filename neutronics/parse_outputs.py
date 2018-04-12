@@ -178,8 +178,8 @@ def plot_results(data, ind, dep, colorplot=None):
     plt.title("{0} vs. {1}".format(dep, ind))
     plt.xlabel(label_strings[ind])
     plt.ylabel(label_strings[dep])
-    plt.xscale('log')
-    plt.yscale('log')
+#    plt.xscale('log')
+#    plt.yscale('log')
 
     plt.savefig('figure.png', dpi=500)
 
@@ -226,8 +226,9 @@ def filter_data(filters, data):
 if __name__ == '__main__':
 #    save_store_data()
     data = load_from_csv()
-    data = filter_data([('keff', 'great', 0.99), ('enrich', 'great', 0.85)], data)
+    data = filter_data([('keff', 'great', 0.2), ('enrich', 'great', 0.8),
+        ('enrich', 'less', 0.9)], data)
 #    surf_plot(data)
-    plt = plot_results(data, 'mass', 'keff', 'power')
+    plt = plot_results(data, 'mass', 'keff', 'PD')
 
     plt.show()
