@@ -17,6 +17,21 @@ def load_from_csv(datafile="depl_results.csv"):
 
 data = load_from_csv()
 
-intpl = NearestNDInterpolator((data['mass'], data['enrich'], data['PD']), data['keff'])
+dp_cats = ['mass', 'PD', 'enrich']
 
-print(intpl(1431, 0.87583, 1.53677))
+dep_data = ()
+for dim in dp_cats:
+    dep_data += (data[dim],)
+
+intpl = NearestNDInterpolator(dep_data, data['keff'])
+
+diff = 0
+
+for idx, line in enumerate(data):
+    inp = data[idx][dp_cats]
+    obs = intpl(tuple(inp))    
+    err = (obs - data[idx]['keff'])**2
+    diff += err
+
+
+print(intpl(3525, 1.5856, 0.77))
