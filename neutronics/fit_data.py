@@ -1,11 +1,10 @@
-from scipy import optimize
-from scipy.interpolate import NearestNDInterpolator
+from scipy.optimize import curve_fit
+import neutronic_sweeps as ns
+import itertools
 import numpy as np
 import math
-import scipy.linalg
-from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
-import neutronic_sweeps as ns
+from parse_outputs import filter_data, plot_results
 
 def load_from_csv(datafile="depl_results.csv"):
     """load the results data from a csv.
@@ -16,22 +15,40 @@ def load_from_csv(datafile="depl_results.csv"):
     return data
 
 data = load_from_csv()
+#data = filter_data([('keff', 'great', 1.0)], data)
 
-dp_cats = ['mass', 'PD', 'enrich']
+X = np.log(data['mass'])
+Y = np.log(data['enrich'])
+Z = np.log(data['keff'])
 
-dep_data = ()
-for dim in dp_cats:
-    dep_data += (data[dim],)
+def log_func(data, a, b, c):
+    x = a + b*data[0] + c*data[1]
+    return x 
 
-intpl = NearestNDInterpolator(dep_data, data['keff'])
+def plot_results(ind, dep, colorplot):
+    """Generate Plots
+    """
+    # plot
+    fig = plt.figure()
+    plt.scatter(ind, dep, c=colorplot, s=6,
+                cmap=plt.cm.get_cmap('plasma', len(set(colorplot))))
+    plt.colorbar(label='PD')
+    # titles and labels
+    plt.title("Error vs. Enrich (k > 1)")
+    plt.savefig('figure.eps', dpi=1500, format='eps')
+    
+    plt.show()
 
-diff = 0
+    return plt
 
-for idx, line in enumerate(data):
-    inp = data[idx][dp_cats]
-    obs = intpl(tuple(inp))    
-    err = (obs - data[idx]['keff'])**2
-    diff += err
+guess = (1, 1, 1)
+popt, pcov = curve_fit(log_func, [X, Y], Z, p0=guess)
+print(popt)
+err = []
 
+for m, e, k in zip(X, Y, data['keff']):
 
-print(intpl(3525, 1.5856, 0.77))
+    fitval = math.exp(popt[0] + m*popt[1] + e*popt[2])
+    err.append(abs((fitval - k) / k))
+
+plot_results(data['mass'], err, data['PD'])

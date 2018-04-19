@@ -9,7 +9,7 @@ import numpy as np
 import glob
 import neutronic_sweeps as ns
 
-names = ns.dimensions + ['keff', 'ave_E', 'mass']
+names = ns.dimensions + ['keff', 'ave_E', 'mass', 'q_dens']
 types = ['f8']*len(names)
 
 def load_outputs(data_dir):
@@ -95,17 +95,18 @@ def parse_header_string(string):
     for line in string:
         if '1-' in line:
             data = line.split()[1]
-            core_r = float(data.split(',')[0])
-            cool_r = float(data.split(',')[1])
-            PD = float(data.split(',')[2])
-            power = float(data.split(',')[3])
-            enrich = float(data.split(',')[4])
+            AR = float(data.split(',')[0])
+            core_r = float(data.split(',')[1])
+            cool_r = float(data.split(',')[2])
+            PD = float(data.split(',')[3])
+            power = float(data.split(',')[4])
+            enrich = float(data.split(',')[5])
             
             break
 
-    return [1, PD, cool_r, core_r, enrich, power]
+    return [AR, PD, cool_r, core_r, enrich, power]
 
-def calc_fuel_mass(core_r, r, PD):
+def calc_fuel_mass(core_r, r, PD, Q):
     """
     """
     c = 0.0031
@@ -126,9 +127,11 @@ def calc_fuel_mass(core_r, r, PD):
     
     fuel_vol = core_v * vfrac_cermet
 
-    return (fuel_vol * md.rho_UN) / 1000
+    power_density = Q / (core_v / 1000) # W / l or MW/m^3
 
-def save_store_data(data_dir='./data/*'):
+    return (fuel_vol * md.rho_UN) / 1000, power_density
+
+def save_store_data(data_dir='/mnt/sdb/calculation_results/lhs_results_2/*'):
     """
     """
     files = glob.glob(data_dir)
@@ -140,7 +143,7 @@ def save_store_data(data_dir='./data/*'):
         string = fp.readlines()
         fp.close()
         params = parse_header_string(string)
-        data[idx]['AR'] =  1
+        data[idx]['AR'] =  round(params[0], 5)
         data[idx]['PD'] = round(params[1], 5)
         data[idx]['cool_r'] = round(params[2], 5)
         data[idx]['core_r'] = round(params[3], 5)
@@ -148,7 +151,9 @@ def save_store_data(data_dir='./data/*'):
         data[idx]['power'] = round(params[5], 5)
         data[idx]['keff'] = parse_keff(string)[2][-1]
         data[idx]['ave_E'] = parse_etal('1', string)[-1]
-        data[idx]['mass']  = calc_fuel_mass(params[3], params[2], params[1])
+        mass, q_dens = calc_fuel_mass(params[3], params[2], params[1], params[5])
+        data[idx]['mass'] = mass
+        data[idx]['q_dens'] = round(q_dens, 5)
 
     np.savetxt("depl_results.csv", data, delimiter=',', 
            fmt='%10.5f', header=','.join(names))
@@ -164,7 +169,8 @@ def plot_results(data, ind, dep, colorplot=None):
                      'power' : 'Core Thermal Power [kW]',
                      'keff' : 'k-eff [-]',
                      'ave_E' : 'average neutron energy [MeV]',
-                     'mass' : 'reactor fuel mass [kg]'
+                     'mass' : 'reactor fuel mass [kg]',
+                     'q_dens' : 'volumetric power density [kW/l]'
                     }
     # plot
     fig = plt.figure()
@@ -176,12 +182,15 @@ def plot_results(data, ind, dep, colorplot=None):
         plt.scatter(data[ind], data[dep], s=6)
     # titles and labels
     plt.title("{0} vs. {1}".format(dep, ind))
+#    plt.title("keff vs. mass for 0.2 < enrich < 0.3")
     plt.xlabel(label_strings[ind])
     plt.ylabel(label_strings[dep])
 #    plt.xscale('log')
 #    plt.yscale('log')
 
-    plt.savefig('figure.png', dpi=500)
+    plt.savefig('figure.eps', dpi=1500, format='eps')
+    
+    plt.show()
 
     return plt
 
@@ -226,8 +235,7 @@ def filter_data(filters, data):
 if __name__ == '__main__':
 #    save_store_data()
     data = load_from_csv()
-    data = filter_data([('keff', 'great', 0.2), ('enrich', 'great', 0.4),
-        ('enrich', 'less', 0.9)], data)
+#    data = filter_data([('keff', 'great', 1.0)], data)
 #    surf_plot(data)
     plt = plot_results(data, 'mass', 'keff', 'enrich')
 
