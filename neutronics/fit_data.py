@@ -32,10 +32,12 @@ def plot_results(ind, dep, colorplot):
     fig = plt.figure()
     plt.scatter(ind, dep, c=colorplot, s=6,
                 cmap=plt.cm.get_cmap('plasma', len(set(colorplot))))
-    plt.colorbar(label='PD')
+    plt.colorbar(label='keff [-]')
     # titles and labels
-    plt.title("Error vs. Enrich (k > 1)")
-    plt.savefig('figure.eps', dpi=1500, format='eps')
+    plt.ylabel('relative error [-]')
+    plt.xlabel('fuel mass [kg]')
+    plt.title("Error vs. Mass")
+    plt.savefig('figure.png', dpi=500)
     
     plt.show()
 
