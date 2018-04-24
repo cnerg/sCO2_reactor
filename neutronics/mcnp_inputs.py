@@ -31,8 +31,8 @@ class HomogeneousInput:
     """Write Homogeneous Input File.
     Class to write homogeneous MCNP burnup input files.
     """
-    
-    def __init__(self, radius, length, pnnl_mats, thick_refl=15):
+    kW_to_MW = 0.001    
+    def __init__(self, radius, length, power, pnnl_mats, thick_refl=15):
         """Initialize geometric reactor parameters.
 
         Initialized Attributes:
@@ -40,11 +40,13 @@ class HomogeneousInput:
             z (float): reactor core height
             r (float): reactor core radius
             frac_fuel (float): fuel to coolant channel fraction
+            Q_therm (float): reactor thermal power
             matlib (MaterialLibrary): PyNE material library
         """
         self.z = length
         self.r = radius
         self.refl_t = thick_refl
+        self.Q_therm = power * self.kW_to_MW
         self.matlib = pnnl_mats
 
     def calc_vol_vfrac(self, r_cool, PD, c):
@@ -172,7 +174,8 @@ class HomogeneousInput:
                                        fuel_string = self.fuel_string,
                                        fuel_rho = self.rho,
                                        fuel_vol = self.core_vol,
-                                       refl_vol = self.core_vol)
+                                       refl_vol = self.core_vol,
+                                       thermal_power = self.Q_therm)
         # write the file
         filename = 'r_{0}_{1}.i'.format(round(self.vfrac_cermet, 3), 
                                                  round(self.r, 3))
@@ -184,5 +187,5 @@ class HomogeneousInput:
 
 if __name__=='__main__':
     matlib = build_pyne_matlib()
-    test = HomogeneousInput(10, 5, matlib)
+    test = HomogeneousInput(10, 5, 150, matlib)
     test.write_input()
