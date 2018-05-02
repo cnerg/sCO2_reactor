@@ -131,7 +131,7 @@ def calc_fuel_mass(core_r, r, PD, Q):
 
     return (fuel_vol * md.rho_UN) / 1000, power_density
 
-def save_store_data(data_dir='/mnt/sdb/calculation_results/lhs_results_2/*'):
+def save_store_data(data_dir='./data/*'):#'/mnt/sdb/calculation_results/lhs_results_2/*'):
     """
     """
     files = glob.glob(data_dir)
@@ -233,7 +233,7 @@ def filter_data(filters, data):
     return data
 
 if __name__ == '__main__':
-#    save_store_data()
+    save_store_data()
     data = load_from_csv()
 #    data = filter_data([('keff', 'great', 1.0)], data)
 #    surf_plot(data)

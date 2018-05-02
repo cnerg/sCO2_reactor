@@ -1,6 +1,11 @@
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+
 import numpy as np
 import pandas as pd
+import itertools
 from sklearn import datasets, linear_model
 from sklearn.metrics import mean_squared_error, r2_score
 
@@ -9,48 +14,49 @@ import neutronic_sweeps as ns
 
 
 data = pd.read_csv("depl_results.csv")
-data = filter_data([('keff', 'great', 1.0)], data)
+#data = filter_data([('keff', 'great', 1.0)], data)
 
-X = data[['core_r', 'enrich', 'PD', 'cool_r', 'power']]
-Y = data['keff']
+def linear_regression(predictors, target, ntrain, form_predict=('lin', 'lin')):
 
-midpoint = int(len(data) / 2)
-X_train = np.log(X[:midpoint])
-X_test = np.log(X[midpoint:])
+    # apply linear or log shift to data
+    ops = {'lin' : lambda x: x,
+           'log' : lambda x: np.log(x)
+          }
 
-Y_train = Y[:midpoint]
-Y_test = Y[midpoint:]
+    X = ops[form_predict[0]](data[predictors])
+    Y = ops[form_predict[1]](data[target])
 
-regr = linear_model.LinearRegression()
+    X_train = X[:ntrain]
+    X_test =  X[ntrain:]
 
-regr.fit(X_train, Y_train)
+    Y_train = Y[:ntrain]
+    Y_test = Y[ntrain:]
 
-y_pred = regr.predict(X_test)
+    regr = linear_model.LinearRegression()
 
-# The coefficients
-print('Coefficients: \n', regr.coef_)
-# The mean squared error
-print("Mean squared error: %.4f"
-      % mean_squared_error(Y_test, y_pred))
-# Explained variance score: 1 is perfect prediction
-print('Variance score: %.3f' % r2_score(Y_test, y_pred))
-print(regr.get_params())
+    regr.fit(X_train, Y_train)
 
-def plot_results(ind, dep, colorplot=[]):
-    """Generate Plots
+    y_pred = regr.predict(X_test)
+
+    # The coefficients
+    print('Coefficients: \n', regr.coef_)
+    # The mean squared error
+    print("Mean squared error: %.4f"
+          % mean_squared_error(Y_test, y_pred))
+    # Explained variance score: 1 is perfect prediction
+    print('Variance score: %.4f' % r2_score(Y_test, y_pred))
+
+
+def compare_fits():
+    """Try various forms for fitting the data, compare results.
     """
-    # plot
-    fig = plt.figure()
-    if len(colorplot) > 0:
-        plt.scatter(ind, dep, c=colorplot, s=6,
-                cmap=plt.cm.get_cmap('plasma', len(set(colorplot))))
-        plt.colorbar()
-    else:
-        plt.scatter(ind, dep, s=6)
-    
-    plt.show()
+    print('Linear - Linear Fit\n-------------------\n')
+    linear_regression(['core_r', 'PD', 'enrich'], 'keff', 1500, ('lin', 'lin'))
+    print('\nLinear - Log Fit\n----------------\n')
+    linear_regression(['core_r', 'PD', 'enrich'], 'keff', 1500, ('lin', 'log'))
+    print('\nLog - Linear Fit\n----------------\n')
+    linear_regression(['core_r', 'PD', 'enrich'], 'keff', 1500, ('log', 'lin'))
+    print('\nLog - Log Fit\n-------------\n')
+    linear_regression(['core_r', 'PD', 'enrich'], 'keff', 1500, ('log', 'log'))
 
-    return plt
-
-err = np.abs(y_pred - Y_test)
-plot_results(data['mass'][midpoint:], err, np.exp(X_test['enrich']))
+compare_fits()
