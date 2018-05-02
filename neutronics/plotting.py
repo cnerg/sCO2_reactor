@@ -19,28 +19,40 @@ axis_labels = {'core_r' : 'Core R [cm]',
                'ave_E' : 'Average Energy EOL [MeV]',
                'mass' : 'Fuel mass [kg]'
               }
+# apply linear or log shift to data
+ops = {'lin' : lambda x: x,
+       'log' : lambda x: np.log(x)
+      }
 
 data = pd.read_csv("depl_results.csv")
 #data = filter_data([('keff', 'great', 1.0)], data)
 
-def plot_results(ind, dep, colorplot=[]):
+def plot_results(ind, dep, labels):
     """Generate Plots
     """
-    # plot
     fig = plt.figure()
-    if len(colorplot) > 0:
-        plt.scatter(ind, dep, c=colorplot, s=6,
-                cmap=plt.cm.get_cmap('plasma', len(set(colorplot))))
-        plt.colorbar()
-    else:
-        plt.scatter(ind, dep, s=6)
+     
+    for x, y, label in zip(ind, dep, labels):
+        # plot
+        plt.plot(x, y, label=label)
     
+    plt.legend(labels) 
     plt.show()
 
     return plt
 
 def property_plot_matrix(data, params, colorplot=None):
-        """
+        """Produce a matrix property plot, plotting every data category against
+        itself and the other categories
+
+        Arguments:
+        ---------- 
+            data (array):  panda array of the all data
+            params (tuple): tuple of keys for desired plots
+            colorplot (str): optional str to include colorbar
+        Returns:
+        --------
+            plt (matplotlib inst.): plot object
         """
         
         dim = len(params)
@@ -53,7 +65,7 @@ def property_plot_matrix(data, params, colorplot=None):
             plots.append(row)
 
         pass_idx = []
-        # create list of "skippable" repeat plots
+        # create list of "skippable" repeat plots, forming RU 'matrix' of plots
         for rowdx in range(dim):
             basedx = rowdx * dim 
             for i in range(rowdx):
@@ -61,6 +73,7 @@ def property_plot_matrix(data, params, colorplot=None):
 
 
         fig = plt.figure(figsize=(8, 6))
+        # loop throug each plot, creating it and assigning it to the grid
         for xidx, row in enumerate(plots):
             for yidx, plot in enumerate(row): 
                 pass_id = dim*yidx + xidx
@@ -72,18 +85,24 @@ def property_plot_matrix(data, params, colorplot=None):
                     y = data[ykey]
                     ax.tick_params(which="both", size=0.25)
                     if colorplot:
-                        ax.scatter(x, y, s=(3/dim), c=data[colorplot], cmap=plt.cm.get_cmap('plasma', len(set(data['keff']))))
+                        ax.scatter(x, y, s=(3/dim), 
+                                   c=data[colorplot], 
+                                   cmap=plt.cm.get_cmap('plasma', 
+                                     len(set(data[colorplot]))))
                     else:
-                        ax.scatter(x, y, s=(3/dim), cmap=plt.cm.get_cmap('plasma', len(set(data['keff']))))
+                        ax.scatter(x, y, s=(3/dim))
                     if ykey == 'power':
-                        ax.ticklabel_format(axis="y", style="sci", fontsize=8, scilimits=(0, 0))
+                        ax.ticklabel_format(axis="y", style="sci", 
+                                            fontsize=8, scilimits=(0, 0))
                     if xkey == 'power':
-                        ax.ticklabel_format(axis="x", style="sci", fontsize=8, scilimits=(0, 0))
+                        ax.ticklabel_format(axis="x", style="sci", 
+                                            fontsize=8, scilimits=(0, 0))
                     if yidx == 0:
                         plt.title(axis_labels[xkey], fontsize=8)
                     if xidx == yidx:
                         plt.ylabel(axis_labels[ykey], fontsize=8)
-
+                    # only display axis labels on center diagonal, saves space
+                    # on matrix
                     if xidx != yidx:
                         ax.xaxis.set_visible(False)
                         ax.yaxis.set_visible(False)
@@ -92,19 +111,19 @@ def property_plot_matrix(data, params, colorplot=None):
         
         return plt
 
-def property_plot_row(data, params, dep, colorplot=None):
+def property_plot_row(data, params, dep, loglin, colorplot=None):
         """
         """
         
         dim = len(params)
         basesize = 6
-        fig = plt.figure(figsize=(20, 10))
+        fig = plt.figure(figsize=(12, 8))
         for xidx, plot in enumerate(params):
             ax = fig.add_subplot(1, dim, xidx+1)
             xkey = plot
             ykey = dep
-            x = data[xkey]
-            y = data[ykey]
+            x = ops[loglin[0]](data[xkey])
+            y = ops[loglin[1]](data[ykey])
             ax.tick_params(which="both")
             
             if colorplot:
@@ -170,7 +189,8 @@ def surf_plot(data, ind1, ind2, dep, colorplot=None):
     plt.show()
     plt.savefig('surface_plot.png', dpi=500)
 
-
-#plt = property_plot_matrix(data, ('core_r', 'PD', 'enrich', 'mass', 'keff'))
-plt = property_plot_row(data, ['core_r', 'PD', 'enrich', 'cool_r'], 'keff', 'mass')
-#surf_plot(data, 'core_r', 'enrich', 'PD', 'keff')
+if __name__=='__main__':
+    #plt = property_plot_matrix(data, ('core_r', 'PD', 'enrich', 'mass', 'keff'))
+    plt = property_plot_row(data, ['core_r', 'PD'], 'mass', ('lin', 'lin'),
+    'keff')
+    #surf_plot(data, 'core_r', 'enrich', 'PD', 'keff')
