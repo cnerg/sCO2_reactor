@@ -28,10 +28,10 @@ const_vals = {'AR' : 1, 'cool_r' : 0.5, 'core_r' : 20, 'enrich' : 0.9, 'PD' : 1.
 #              'PD'      : (1.4, 1.6, 0.1),        
 #              'enrich'  : (0.3, 0.9, 0.1)
 #             }
-parameters = {'power' : (80, 400, 20)}
+parameters = {'power' : (80, 5000, 50)}
 
 dim = len(parameters.keys())
-samples = 40
+samples = 100
 
 def gen_hypercube(samples, N):
     """Generate N-dimensional latin hypercube to sample dimensional reactor

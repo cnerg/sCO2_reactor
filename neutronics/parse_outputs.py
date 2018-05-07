@@ -139,6 +139,7 @@ def save_store_data(data_dir='./data/*'):#'/mnt/sdb/calculation_results/lhs_resu
     data = np.zeros(N, dtype={'names' : names, 'formats' : types})
 
     for idx, file in enumerate(files):
+        print(file)
         fp = open(file, 'r')
         string = fp.readlines()
         fp.close()
@@ -237,6 +238,6 @@ if __name__ == '__main__':
     data = load_from_csv()
 #    data = filter_data([('keff', 'great', 1.0)], data)
 #    surf_plot(data)
-    plt = plot_results(data, 'mass', 'keff', 'enrich')
+    plt = plot_results(data, 'power', 'keff')
 
     plt.show()

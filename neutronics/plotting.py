@@ -152,32 +152,35 @@ def property_plot_row(data, params, dep, loglin, colorplot=None):
         
         return plt
 
-def surf_plot(data, ind1, ind2, dep, colorplot=None):
+def surf_plot(data, ind1, ind2, dep, colorplot=None, linlog=('lin', 'lin', 'lin')):
     """
     """
 
     fig = plt.figure()
     ax = fig.gca(projection='3d')
 
-    X = data[ind1]
-    Y = data[ind2]
-    Z = data[dep]
-    scaled_size = np.log(np.multiply(data['keff'], 10))*10
+    X = ops[linlog[0]](data[ind1])
+    Y = ops[linlog[0]](data[ind2])
+    Z = ops[linlog[1]](data[dep])
+
+    scaled_size = np.log(np.add(data['keff'], [1]*len(data))) * 500
 
     if colorplot:
         # Plot the surface.
-        p = ax.scatter(X,Y,Z, s=scaled_size, c=data[colorplot],
+        cplt = ops[linlog[2]](data[colorplot])
+        p = ax.scatter(X,Y,Z, s=10, c=cplt,
                 cmap=plt.cm.get_cmap('viridis',
             len(data[colorplot])))
         plt.colorbar(p, ax=ax, label=axis_labels[colorplot])
     else:
-        ax.scatter(X, Y, Z, c=Z)
+        p = ax.scatter(X, Y, Z, s=10, c=Z)
+        plt.colorbar(p, ax=ax, label=axis_labels[dep])
 
     # Customize the z axis.
     ax.zaxis.set_major_locator(LinearLocator(10))
     ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
     
-    labelsize = 5
+    labelsize = 10
     ax.set_xlabel(axis_labels[ind1])
     ax.set_ylabel(axis_labels[ind2])
     ax.set_zlabel(axis_labels[dep])
@@ -186,11 +189,13 @@ def surf_plot(data, ind1, ind2, dep, colorplot=None):
     ax.yaxis.label.set_size(labelsize)
     ax.zaxis.label.set_size(labelsize)
     
+    plt.title('{0} = f({1}, {2})'.format(dep, ind1, ind2))
+    plt.savefig('surface_plot.png', dpi=700)
+
     plt.show()
-    plt.savefig('surface_plot.png', dpi=500)
 
 if __name__=='__main__':
-    #plt = property_plot_matrix(data, ('core_r', 'PD', 'enrich', 'mass', 'keff'))
-    plt = property_plot_row(data, ['core_r', 'PD'], 'mass', ('lin', 'lin'),
-    'keff')
-    #surf_plot(data, 'core_r', 'enrich', 'PD', 'keff')
+    plt = property_plot_matrix(data, ('power', 'keff'))
+    #plt = property_plot_row(data, ['core_r', 'PD'], 'mass', ('lin', 'lin'),
+    #'keff')
+    #surf_plot(data, 'core_r', 'PD', 'mass', None, ('lin', 'lin', 'lin'))

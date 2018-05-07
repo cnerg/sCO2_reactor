@@ -35,7 +35,7 @@ def surf_plot(data, ind1, ind2, dep, colorplot=None):
     Z = data[dep]
     if colorplot:
         # Plot the surface.
-        p = ax.scatter(X,Y,Z, s=np.log(data['keff'])*500, c=data[colorplot], cmap=plt.cm.get_cmap('viridis',
+        p = ax.scatter(X,Y,Z, s=np.log(data['mass'])*50, c=data[colorplot], cmap=plt.cm.get_cmap('viridis',
             len(data[colorplot])))
         plt.colorbar(p, ax=ax, label=axis_labels[colorplot])
     else:
@@ -60,7 +60,7 @@ def animate(i):
 
 # Animate
 anim = animation.FuncAnimation(fig, animate, init_func=init,
-                               frames=720, interval=20, blit=True, repeat=True)
+                               frames=360, interval=20, blit=True, repeat=True)
 # Save
 anim.save('basic_animation.mp4', fps=10, bitrate=-1,
         dpi=500,extra_args=['-vcodec', 'libx264'], writer='ffmpeg')
