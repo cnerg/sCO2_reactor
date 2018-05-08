@@ -1,5 +1,6 @@
 """Mass fraction compositions for reactor materials.
 """
+
 # fuel fraction in cermet 
 vfrac_UN = 0.6 # (Webb and Charit 2012)
 # densities [g/cc]

@@ -30,17 +30,18 @@ def build_pyne_matlib(nucdata_file=None):
 class HomogeneousInput:
     """Write Homogeneous Input File.
     Class to write homogeneous MCNP burnup input files.
-    """
+    """    
     kW_to_MW = 0.001    
+
     def __init__(self, radius, length, power, pnnl_mats, thick_refl=15):
         """Initialize geometric reactor parameters.
 
         Initialized Attributes:
         -----------------------
-            z (float): reactor core height
-            r (float): reactor core radius
-            frac_fuel (float): fuel to coolant channel fraction
-            Q_therm (float): reactor thermal power
+            z (float): reactor core height [cm]
+            r (float): reactor core radius [cm]
+            frac_fuel (float): fuel to coolant channel fraction [-]
+            Q_therm (float): reactor thermal power [kW]
             matlib (MaterialLibrary): PyNE material library
         """
         self.z = length
