@@ -24,7 +24,7 @@ def linear_regression(predictors, target, train_frac, form_predict=('lin', 'lin'
     ntrain = int(len(X) * train_frac)
     X_train = X[:ntrain]
     X_test = X[ntrain:]
-
+    
     Y_train = Y[:ntrain]
     Y_test = Y[ntrain:]
 
@@ -104,7 +104,7 @@ def test_fit_config(vars, linlog):
     train_frac = []
     sse = []
 
-    for i in np.arange(0.01, 0.99, 0.01):
+    for i in np.arange(0.2, 0.7, 0.01):
         Y_test, y_pred, regr, ss =  linear_regression(vars, 'keff', i, linlog)
         sse.append(ss)
         r.append(r2_score(Y_test, y_pred))
@@ -119,40 +119,42 @@ def plotrs():
     tfrac = []
     sse = []
 
+    loglin = ('lin', 'lin')
 
-    r, mse, train_frac, s = test_fit_config(['core_r'], ('log', 'lin'))
+    r, mse, train_frac, s = test_fit_config(['core_r'], loglin)
     rs.append(r)
     sse.append(s)
     tfrac.append(train_frac)
-    r, mse, train_frac, s = test_fit_config(['core_r', 'PD'], ('log', 'lin'))
+    r, mse, train_frac, s = test_fit_config(['core_r', 'PD'], loglin)
     rs.append(r)
     sse.append(s)
     tfrac.append(train_frac)
-    r, mse, train_frac, s = test_fit_config(['core_r', 'PD', 'enrich'], ('log', 'lin'))
+    r, mse, train_frac, s = test_fit_config(['core_r', 'PD', 'enrich'], loglin)
     rs.append(r)
     sse.append(s)
     tfrac.append(train_frac)
-    r, mse, train_frac, s = test_fit_config(['core_r', 'PD', 'enrich', 'mass'], ('log', 'lin'))
-    rs.append(r)
-    sse.append(s)
-    tfrac.append(train_frac)
-    r, mse, train_frac, s = test_fit_config(['mass'], ('log', 'lin'))
-    rs.append(r)
-    sse.append(s)
-    tfrac.append(train_frac)
-    r, mse, train_frac, s = test_fit_config(['mass', 'PD'], ('log', 'lin'))
-    rs.append(r)
-    sse.append(s)
-    tfrac.append(train_frac)
-    r, mse, train_frac, s = test_fit_config(['mass', 'PD', 'enrich'], ('log', 'lin'))
-    rs.append(r)
-    sse.append(s)
-    tfrac.append(train_frac)
+#    r, mse, train_frac, s = test_fit_config(['core_r', 'PD', 'enrich', 'mass'], loglin)
+#    rs.append(r)
+#    sse.append(s)
+#    tfrac.append(train_frac)
+    """    r, mse, train_frac, s = test_fit_config(['mass'], loglin)
+        rs.append(r)
+        sse.append(s)
+        tfrac.append(train_frac)
+        r, mse, train_frac, s = test_fit_config(['mass', 'PD'], loglin)
+        rs.append(r)
+        sse.append(s)
+        tfrac.append(train_frac)
+        r, mse, train_frac, s = test_fit_config(['mass', 'PD', 'enrich'], loglin)
+        rs.append(r)
+        sse.append(s)
+        tfrac.append(train_frac)
+    """
 
-    plot.plot_results(tfrac,sse, ['R', 'R(PD)', 'R(PD)E', 'R(PD)EM', 'M', 'M(PD)',
-        'M(PD)E'])
+    legend_labels = ['R', 'R(PD)', 'R(PD)E']#, 'R(PD)EM', 'M', 'M(PD)', 'M(PD)E']
+    plot.plot_results(tfrac,rs, legend_labels, ('Impact of training/testing fraction on R^2 value', 'training fraction', 'R^2'))
+    
 
-    #compare_fits()
-#ridge_regression(['core_r', 'PD', 'enrich'], 'keff', 0.5, ('lin', 'lin'))
 
-plotrs()
+#plotrs()
+compare_fits()

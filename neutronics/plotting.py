@@ -27,7 +27,7 @@ ops = {'lin' : lambda x: x,
 data = pd.read_csv("depl_results.csv")
 #data = filter_data([('keff', 'great', 1.0)], data)
 
-def plot_results(ind, dep, labels):
+def plot_results(ind, dep, labels, titles):
     """Generate Plots
     """
     fig = plt.figure()
@@ -35,8 +35,11 @@ def plot_results(ind, dep, labels):
     for x, y, label in zip(ind, dep, labels):
         # plot
         plt.plot(x, y, label=label)
-    
-    plt.legend(labels) 
+    plt.title(titles[0])
+    plt.xlabel(titles[1])
+    plt.ylabel(titles[2])
+    plt.legend(labels)
+    plt.savefig('figure.png', dpi=500)
     plt.show()
 
     return plt

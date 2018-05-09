@@ -235,7 +235,7 @@ def filter_data(filters, data):
 
 if __name__ == '__main__':
     save_store_data()
-    data = load_from_csv()
+    data = load_from_csv('/mnt/sdb/calculation_results/power_dep_results.csv')
 #    data = filter_data([('keff', 'great', 1.0)], data)
 #    surf_plot(data)
     plt = plot_results(data, 'power', 'keff')
