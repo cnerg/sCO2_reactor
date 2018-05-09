@@ -10,7 +10,7 @@ else:
 
 def test_norm_comp():
     # build example input file
-    obs = HomogeneousInput(15, 0.6, matlib)
+    obs = HomogeneousInput(15, 0.6, 150, matlib)
     obs.homog_core()
     
     obs_total_frac = 0
@@ -78,7 +78,7 @@ def test_homog_comp():
                }
 
     # build example input file
-    obs = HomogeneousInput(15, 0.6, matlib)
+    obs = HomogeneousInput(15, 0.6, 150, matlib)
     obs.homog_core()
     obs.write_mat_string()
     obs_mat = obs.homog_mat
