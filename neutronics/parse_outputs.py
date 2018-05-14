@@ -1,21 +1,28 @@
 import operator
 import math
-import material_data as md
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import numpy as np
 import glob
-import neutronic_sweeps as ns
-import plotting as plot
 
-names = ns.dimensions + ['keff', 'ave_E', 'mass', 'q_dens', 'BOL_U', 'EOL_U',
-        'rel_depl', 'delta_U']
+# module imports
+import neutronic_sweeps as ns
+import material_data as md
+
+# sampling parameters from neutronic_sweeps
+sampled_params = ns._dimensions
+res = ['keff', 'ave_E', 'mass', 'q_dens', 'BOL_U', 'EOL_U', 'rel_depl', 'dU']
+names = sampled_params + res
 types = ['f8']*len(names)
 
 def load_outputs(data_dir):
-    """Load the MCNP output file
+    """Load the MCNP output file string.
+
+    Arguments:
+    ----------
+        data_dir (str): path to dir containing MCNP6 output files
+    Returns:
+    --------
+        file_strings (list): list of lists of strings, 
+    1 list for each output file.
     """
     file_strings = []
     files = glob.glob(data_dir)
@@ -26,7 +33,31 @@ def load_outputs(data_dir):
     
     return file_strings
 
-def parse_keff(lines):
+def parse_header_string(lines, data):
+    """Get reactor parameters from header string of MCNP6 output file
+    
+    Arguments:
+    ----------
+        lines (list): list of strings (one for each line)
+
+    Returns:
+    --------
+        
+    """
+    for line in lines:
+        if '1-' in line:
+            parms = line.split()[1]            
+            data['AR'] = float(parms.split(',')[0])
+            data['core_r'] = float(parms.split(',')[1])
+            data['cool_r'] = float(parms.split(',')[2])
+            data['PD'] = float(parms.split(',')[3])
+            data['power'] = float(parms.split(',')[4])
+            data['enrich'] = float(parms.split(',')[5])
+            
+            # terminate parsing when header found
+            break
+
+def parse_keff(lines, data):
     """Parse the keff data from the output file.
     """
     keff = []
@@ -53,10 +84,11 @@ def parse_keff(lines):
             break
         BU.append(float(burndata.split()[8]))
         days.append(float(burndata.split()[2]))
+    
+    data['keff'] = keff[-1]
 
-    return (days, BU, keff, err)
 
-def parse_etal(tally, lines):
+def parse_etal(tally, lines, data):
     """Parse energy tallies from the output file.
     """
     bins = []
@@ -86,70 +118,18 @@ def parse_etal(tally, lines):
         bins.append(bindata)
         vals.append(valdata)
         errs.append(errdata)
+    
+    # calculate average neutron energy
+    average = np.average(bins, weights=vals)    
+    data['ave_E'] = average
 
-    average = np.average(bins, weights=vals)
-
-    return (bins, vals, errs, average)
-
-def parse_actinide_inventory(lines):
-    """Parse actinide mass inventory throughout burnup.
-    """
-    act_inv = {}
-    tsteps =[]
-
-    offset = 4
-
-    for idx, line in enumerate(lines):
-        
-        if ' actinide inventory for material' in line:
-            tsteps.append(idx + offset)
-
-    for i, tidx in enumerate(tsteps):
-        
-        step = 0
-        line = lines[tidx + step]
-
-        while 'totals' not in line:
-            
-            data = line.split()
-            ZAID = int(data[1])
-            mass = float(data[2])
-
-            if ZAID in act_inv.keys():
-                act_inv[ZAID].append(mass)
-
-            else:
-                act_inv.update({ZAID : [0]*(i) + [mass]})
-            
-            step += 1
-            
-            line = lines[tidx + step]
-
-    return act_inv
-
-
-def parse_header_string(string):
-    """Get important parameters from MCNP6 input header string.
-    """
-    for line in string:
-        if '1-' in line:
-            data = line.split()[1]
-            AR = float(data.split(',')[0])
-            core_r = float(data.split(',')[1])
-            cool_r = float(data.split(',')[2])
-            PD = float(data.split(',')[3])
-            power = float(data.split(',')[4])
-            enrich = float(data.split(',')[5])
-            
-            break
-
-    return [AR, PD, cool_r, core_r, enrich, power]
-
-def calc_fuel_mass(core_r, r, PD, Q):
+def calc_fuel_mass(data):
     """
     """
+    g_to_kg = 0.001
+    core_r, r, PD, Q = data[['core_r', 'cool_r', 'PD', 'power']]
     c = 0.0031
-    l = core_r
+    l = core_r*data['AR']
     core_v = math.pi*core_r*core_r*l
 
     pitch = 2*r*PD
@@ -164,11 +144,55 @@ def calc_fuel_mass(core_r, r, PD, Q):
     # calculate vfracs from total cell volume
     vfrac_cermet = v_cermet / cell_vol
     
+    # calculate fuel volume, power density, mass
     fuel_vol = core_v * vfrac_cermet
+    data['q_dens'] = Q / (core_v / 1000) # W / l or MW/m^3
+    data['mass'] = fuel_vol * md.rho_UN * g_to_kg
+    
+def parse_actinide_inventory(lines):
+    """Parse actinide mass inventory throughout burnup.
+    """
+    act_inv = {}
+    tsteps =[]
 
-    power_density = Q / (core_v / 1000) # W / l or MW/m^3
+    offset = 4
 
-    return (fuel_vol * md.rho_UN) / 1000, power_density
+    for idx, line in enumerate(lines):        
+        if ' actinide inventory for material' in line:
+            tsteps.append(idx + offset)
+
+    for i, tidx in enumerate(tsteps):
+        step = 0
+        line = lines[tidx + step]
+
+        while 'totals' not in line:
+            data = line.split()
+            ZAID = int(data[1])
+            mass = float(data[2])
+
+            if ZAID in act_inv.keys():
+                act_inv[ZAID].append(mass)
+            else:
+                act_inv.update({ZAID : [0]*(i) + [mass]})
+            
+            step += 1
+            line = lines[tidx + step]
+
+    return act_inv
+
+def depletion_analysis(act_inv, data):
+    """Post-process the actinide inventory results.
+    """
+    BOL = act_inv[92235][0] / 1000.0
+    EOL = act_inv[92235][-1] / 1000.0
+    
+    data['BOL_U'] = BOL
+    data['EOL_U'] = EOL
+
+    delta_rel = abs(EOL - BOL) / data['mass']
+
+    data['rel_depl'] = delta_rel
+    data['dU'] = abs(EOL - BOL)
 
 def save_store_data(data_dir='/mnt/sdb/calculation_results/sa_results/*o'):
     """
@@ -178,126 +202,25 @@ def save_store_data(data_dir='/mnt/sdb/calculation_results/sa_results/*o'):
     data = np.zeros(N, dtype={'names' : names, 'formats' : types})
 
     for idx, file in enumerate(files):
-#        print(file)
+        print(file)
+        
         fp = open(file, 'r')
         string = fp.readlines()
         fp.close()
-        params = parse_header_string(string)
-        data[idx]['AR'] =  round(params[0], 5)
-        data[idx]['PD'] = round(params[1], 5)
-        data[idx]['cool_r'] = round(params[2], 5)
-        data[idx]['core_r'] = round(params[3], 5)
-        data[idx]['enrich'] = round(params[4], 5)
-        data[idx]['power'] = round(params[5], 5)
-        data[idx]['keff'] = parse_keff(string)[2][-1]
-        data[idx]['ave_E'] = parse_etal('1', string)[-1]
-        mass, q_dens = calc_fuel_mass(params[3], params[2], params[1], params[5])
-        data[idx]['mass'] = mass
-        data[idx]['q_dens'] = round(q_dens, 5)
         
+        # get sampled parameters from header string
+        parse_header_string(string, data[idx])
+        # parse results from MCNP6 output file
+        parse_keff(string, data[idx])
+        parse_etal('1', string, data[idx])
         act_inv = parse_actinide_inventory(string)
-
-        BOL = act_inv[92235][0] / 1000.0
-        EOL = act_inv[92235][-1] / 1000.0
-        
-        data[idx]['BOL_U'] = BOL
-        data[idx]['EOL_U'] = EOL
-
-        delta_rel = abs(EOL - BOL) / mass
-
-        data[idx]['rel_depl'] = delta_rel
-        data[idx]['delta_U'] = abs(EOL - BOL)
-        
-        if abs(EOL - BOL) == 0:
-            print(file)
+        # post-process the results
+        calc_fuel_mass(data[idx])
+        depletion_analysis(act_inv, data[idx])
+    
+    # save data to csv file
     np.savetxt("depl_results.csv", data, delimiter=',', 
            fmt='%10.5f', header=','.join(names))
   
-def plot_results(data, ind, dep, colorplot=None):
-    """Generate Plots
-    """
-    label_strings = {'AR' : 'Core Aspect Ratio[-]',
-                     'PD' : 'Fuel Pitch to Coolant Channel Diameter',
-                     'cool_r' : 'Coolant Channel [cm]',
-                     'core_r' : 'Core Radius [cm]',
-                     'enrich' : 'U-235 Enrichment [-]',
-                     'power' : 'Core Thermal Power [kW]',
-                     'keff' : 'k-eff [-]',
-                     'ave_E' : 'average neutron energy [MeV]',
-                     'mass' : 'reactor fuel mass [kg]',
-                     'q_dens' : 'volumetric power density [kW/l]',
-                     'EOL_U' : 'Uranium mass at EOL [kg]',
-                     'BOL_U' : 'Uranium mass at BOL [kg]',
-                     'delta_U' : 'Uranium mass consumed',
-                     'rel_depl' : 'fraction of reactor mass consumed [-]'
-                    }
-    # plot
-    fig = plt.figure()
-    if colorplot:
-        plt.scatter(data[ind], data[dep], c=data[colorplot], s=6,
-                cmap=plt.cm.get_cmap('plasma', len(set(data[colorplot]))))
-        plt.colorbar(label=label_strings[colorplot])
-    else:
-        plt.scatter(data[ind], data[dep], s=6)
-    # titles and labels
-    plt.title("{0} vs. {1}".format(dep, ind))
-#    plt.title("keff vs. mass for 0.2 < enrich < 0.3")
-    plt.xlabel(label_strings[ind])
-    plt.ylabel(label_strings[dep])
-#    plt.xscale('log')
-#    plt.yscale('log')
-
-    plt.savefig('figure.eps', dpi=1500, format='eps')
-    
-    plt.show()
-
-    return plt
-
-
-def surf_plot(data):
-    fig = plt.figure()
-    ax = fig.gca(projection='3d')
-
-    X = data['core_r']
-    Y = data['PD']
-    Z = data['keff']
-
-    # Plot the surface.
-    ax.scatter(X,Y,Z, c=Z)
-    # Customize the z axis.
-    ax.zaxis.set_major_locator(LinearLocator(10))
-    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-
-    plt.show()
-
-
-def load_from_csv(datafile="depl_results.csv"):
-    """load the results data from a csv.
-    """
-    data = np.genfromtxt(datafile, delimiter=',', names=names)
-    
-    return data
-
-def filter_data(filters, data):
-
-    """Apply useful filters on the data
-    """
-    opers = {'less' : operator.lt,
-             'equal' : operator.eq,
-             'great' : operator.gt}
-    
-    for op in filters:
-        data = data[opers[op[1]](data[op[0]], op[2])]   
-    
-    return data
-
 if __name__ == '__main__':
-#    save_store_data()
-    data = load_from_csv('depl_results.csv')
-    data = filter_data([('mass', 'less', 200)], data)
-#    surf_plot(data)
-    plt = plot_results(data, 'power', 'rel_depl', 'mass')
-#    plt = plot.plot_results((data['power'], data['power']), (data['mass'],
-#        data['EOL_U']), ('BOL', 'EOL'), ('Fuel Consumption', 'power [kW]', 'fuel mass consumed [kg]'))
-#    plt = plot.plot_results([data['power']], [data['delta_U']], ('10 yr fuel consumption', 'thermal power [kW]', 'fuel mass [kg]'), ['Depleted U235 mass'])
-    plt.show()
+    save_store_data()
