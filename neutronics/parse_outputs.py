@@ -8,8 +8,10 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import numpy as np
 import glob
 import neutronic_sweeps as ns
+import plotting as plot
 
-names = ns.dimensions + ['keff', 'ave_E', 'mass', 'q_dens']
+names = ns.dimensions + ['keff', 'ave_E', 'mass', 'q_dens', 'BOL_U', 'EOL_U',
+        'rel_depl', 'delta_U']
 types = ['f8']*len(names)
 
 def load_outputs(data_dir):
@@ -89,6 +91,43 @@ def parse_etal(tally, lines):
 
     return (bins, vals, errs, average)
 
+def parse_actinide_inventory(lines):
+    """Parse actinide mass inventory throughout burnup.
+    """
+    act_inv = {}
+    tsteps =[]
+
+    offset = 4
+
+    for idx, line in enumerate(lines):
+        
+        if ' actinide inventory for material' in line:
+            tsteps.append(idx + offset)
+
+    for i, tidx in enumerate(tsteps):
+        
+        step = 0
+        line = lines[tidx + step]
+
+        while 'totals' not in line:
+            
+            data = line.split()
+            ZAID = int(data[1])
+            mass = float(data[2])
+
+            if ZAID in act_inv.keys():
+                act_inv[ZAID].append(mass)
+
+            else:
+                act_inv.update({ZAID : [0]*(i) + [mass]})
+            
+            step += 1
+            
+            line = lines[tidx + step]
+
+    return act_inv
+
+
 def parse_header_string(string):
     """Get important parameters from MCNP6 input header string.
     """
@@ -131,7 +170,7 @@ def calc_fuel_mass(core_r, r, PD, Q):
 
     return (fuel_vol * md.rho_UN) / 1000, power_density
 
-def save_store_data(data_dir='./data/*'):#'/mnt/sdb/calculation_results/lhs_results_2/*'):
+def save_store_data(data_dir='/mnt/sdb/calculation_results/sa_results/*o'):
     """
     """
     files = glob.glob(data_dir)
@@ -139,7 +178,7 @@ def save_store_data(data_dir='./data/*'):#'/mnt/sdb/calculation_results/lhs_resu
     data = np.zeros(N, dtype={'names' : names, 'formats' : types})
 
     for idx, file in enumerate(files):
-        print(file)
+#        print(file)
         fp = open(file, 'r')
         string = fp.readlines()
         fp.close()
@@ -155,7 +194,22 @@ def save_store_data(data_dir='./data/*'):#'/mnt/sdb/calculation_results/lhs_resu
         mass, q_dens = calc_fuel_mass(params[3], params[2], params[1], params[5])
         data[idx]['mass'] = mass
         data[idx]['q_dens'] = round(q_dens, 5)
+        
+        act_inv = parse_actinide_inventory(string)
 
+        BOL = act_inv[92235][0] / 1000.0
+        EOL = act_inv[92235][-1] / 1000.0
+        
+        data[idx]['BOL_U'] = BOL
+        data[idx]['EOL_U'] = EOL
+
+        delta_rel = abs(EOL - BOL) / mass
+
+        data[idx]['rel_depl'] = delta_rel
+        data[idx]['delta_U'] = abs(EOL - BOL)
+        
+        if abs(EOL - BOL) == 0:
+            print(file)
     np.savetxt("depl_results.csv", data, delimiter=',', 
            fmt='%10.5f', header=','.join(names))
   
@@ -171,7 +225,11 @@ def plot_results(data, ind, dep, colorplot=None):
                      'keff' : 'k-eff [-]',
                      'ave_E' : 'average neutron energy [MeV]',
                      'mass' : 'reactor fuel mass [kg]',
-                     'q_dens' : 'volumetric power density [kW/l]'
+                     'q_dens' : 'volumetric power density [kW/l]',
+                     'EOL_U' : 'Uranium mass at EOL [kg]',
+                     'BOL_U' : 'Uranium mass at BOL [kg]',
+                     'delta_U' : 'Uranium mass consumed',
+                     'rel_depl' : 'fraction of reactor mass consumed [-]'
                     }
     # plot
     fig = plt.figure()
@@ -234,10 +292,12 @@ def filter_data(filters, data):
     return data
 
 if __name__ == '__main__':
-    save_store_data()
-    data = load_from_csv('/mnt/sdb/calculation_results/power_dep_results.csv')
-#    data = filter_data([('keff', 'great', 1.0)], data)
+#    save_store_data()
+    data = load_from_csv('depl_results.csv')
+    data = filter_data([('mass', 'less', 200)], data)
 #    surf_plot(data)
-    plt = plot_results(data, 'power', 'keff')
-
+    plt = plot_results(data, 'power', 'rel_depl', 'mass')
+#    plt = plot.plot_results((data['power'], data['power']), (data['mass'],
+#        data['EOL_U']), ('BOL', 'EOL'), ('Fuel Consumption', 'power [kW]', 'fuel mass consumed [kg]'))
+#    plt = plot.plot_results([data['power']], [data['delta_U']], ('10 yr fuel consumption', 'thermal power [kW]', 'fuel mass [kg]'), ['Depleted U235 mass'])
     plt.show()

@@ -17,7 +17,8 @@ axis_labels = {'core_r' : 'Core R [cm]',
                'enrich' : 'enrich [-]',
                'keff' : 'EOL keff [-]',
                'ave_E' : 'Average Energy EOL [MeV]',
-               'mass' : 'Fuel mass [kg]'
+               'mass' : 'Fuel mass [kg]',
+               'EOL_U' : 'End of Life Uranium Mass [kg]'
               }
 # apply linear or log shift to data
 ops = {'lin' : lambda x: x,
@@ -27,18 +28,26 @@ ops = {'lin' : lambda x: x,
 data = pd.read_csv("depl_results.csv")
 #data = filter_data([('keff', 'great', 1.0)], data)
 
-def plot_results(ind, dep, labels, titles):
+def plot_results(ind, dep, titles=None, labels=None):
     """Generate Plots
     """
     fig = plt.figure()
-     
-    for x, y, label in zip(ind, dep, labels):
-        # plot
-        plt.plot(x, y, label=label)
-    plt.title(titles[0])
-    plt.xlabel(titles[1])
-    plt.ylabel(titles[2])
-    plt.legend(labels)
+    if labels:
+        for x, y, label in zip(ind, dep, labels):
+            # plot
+            print(len(ind))
+            plt.scatter(x, y, label=label)
+        plt.legend(labels)
+    else:
+        for x, y in zip(ind, dep):
+            # plot
+            plt.scatter(x, y)
+
+    if titles:
+        plt.title(titles[0])
+        plt.xlabel(titles[1])
+        plt.ylabel(titles[2])
+#    plt.yscale('lin') 
     plt.savefig('figure.png', dpi=500)
     plt.show()
 
