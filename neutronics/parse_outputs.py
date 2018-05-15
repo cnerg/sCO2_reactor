@@ -59,6 +59,11 @@ def parse_header_string(lines, data):
 
 def parse_keff(lines, data):
     """Parse the keff data from the output file.
+    
+    Arguments:
+    ----------
+        lines (list): lines of the output file (to be parsed)
+        data (ndarray): container to store results
     """
     keff = []
     err = []
@@ -88,8 +93,13 @@ def parse_keff(lines, data):
     data['keff'] = keff[-1]
 
 
-def parse_etal(tally, lines, data):
+def parse_etal(lines, data):
     """Parse energy tallies from the output file.
+    Arguments:
+    ----------
+        tally (str): tally number
+        lines (list): lines of the output file (to be parsed)
+        data (ndarray): container to store results
     """
     bins = []
     vals = []
@@ -100,10 +110,8 @@ def parse_etal(tally, lines, data):
     blower = lines.index('      total bin\n')
     nbins = blower - bupper
     
-    tally_num = '{0}tally'.format(tally)
-
     for idx, line in enumerate(lines):
-        if tally_num in line and 'nps' in line:
+        if '1tally' in line and 'nps' in line:
             tally_locations.append(idx + 11)
             
     for tally in tally_locations:
@@ -123,8 +131,12 @@ def parse_etal(tally, lines, data):
     average = np.average(bins, weights=vals)    
     data['ave_E'] = average
 
-def calc_fuel_mass(data):
-    """
+def calc_fuel_mass_q_dens(data):
+    """Calculate the reactor fuel mass and coolant density.
+    
+    Arguments:
+    ----------
+        data (ndarray): container to store results
     """
     g_to_kg = 0.001
     core_r, r, PD, Q = data[['core_r', 'cool_r', 'PD', 'power']]
@@ -150,7 +162,19 @@ def calc_fuel_mass(data):
     data['mass'] = fuel_vol * md.rho_UN * g_to_kg
     
 def parse_actinide_inventory(lines):
-    """Parse actinide mass inventory throughout burnup.
+    """Parse actinide mass inventory.
+
+    This function parses the MCNP6 output file and returns the actinide mass
+    inventory for each step in the depletion calculation.
+
+    Arguments:
+    ----------
+        lines (list): lines of the output file (to be parsed)
+
+    Returns:
+    --------
+        act_inv (list): list of dicts with the actinide inventory at each time
+        step.
     """
     act_inv = {}
     tsteps =[]
@@ -182,6 +206,12 @@ def parse_actinide_inventory(lines):
 
 def depletion_analysis(act_inv, data):
     """Post-process the actinide inventory results.
+    
+    Arguments:
+    ----------
+        act_inv (list): list of dicts with the actinide inventory at each time
+        step.
+        data (ndarray): container to store results
     """
     BOL = act_inv[92235][0] / 1000.0
     EOL = act_inv[92235][-1] / 1000.0
@@ -194,13 +224,19 @@ def depletion_analysis(act_inv, data):
     data['rel_depl'] = delta_rel
     data['dU'] = abs(EOL - BOL)
 
-def save_store_data(data_dir='/mnt/sdb/calculation_results/sa_results/*o'):
+def save_store_data(data_dir='./results/*o'):
+    """Parse every MCNP6 output for neutronics and mass/qdens results.
+
+    Arguments:
+    ----------
+        data_dir (str): path to directory with MCNP6 output files
     """
-    """
+    # gather files
     files = glob.glob(data_dir)
     N = len(files)
+    # initialize data array
     data = np.zeros(N, dtype={'names' : names, 'formats' : types})
-
+    # unpack each MCNP6 result
     for idx, file in enumerate(files):
         print(file)
         
@@ -212,10 +248,10 @@ def save_store_data(data_dir='/mnt/sdb/calculation_results/sa_results/*o'):
         parse_header_string(string, data[idx])
         # parse results from MCNP6 output file
         parse_keff(string, data[idx])
-        parse_etal('1', string, data[idx])
+        parse_etal(string, data[idx])
         act_inv = parse_actinide_inventory(string)
         # post-process the results
-        calc_fuel_mass(data[idx])
+        calc_fuel_mass_q_dens(data[idx])
         depletion_analysis(act_inv, data[idx])
     
     # save data to csv file
@@ -223,4 +259,4 @@ def save_store_data(data_dir='/mnt/sdb/calculation_results/sa_results/*o'):
            fmt='%10.5f', header=','.join(names))
   
 if __name__ == '__main__':
-    save_store_data()
+    save_store_data('/mnt/sdb/calculation_results/sa_results/*o')
