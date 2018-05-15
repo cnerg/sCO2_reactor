@@ -151,7 +151,7 @@ class HomogeneousInput:
         # write mcnp-form string
         self.fuel_string = self.homog_mat.mcnp().strip('\n')
 
-    def write_input(self):
+    def write_input(self, file_num, header):
         """ Write MCNP6 input files.
         This function writes the MCNP6 input files for the leakage experiment using
         the template input string. It writes a bare and reflected core input file
@@ -176,8 +176,8 @@ class HomogeneousInput:
                                        fuel_string = self.fuel_string,
                                        fuel_rho = self.rho,
                                        fuel_vol = self.core_vol,
-                                       refl_vol = self.core_vol,
-                                       thermal_power = self.Q_therm)
+                                       refl_vol = self.refl_vol,
+                                       core_power = self.Q_therm)
         # write the file
         filename = '{0}.i'.format(file_num)
         ifile = open(filename, 'w')
