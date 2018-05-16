@@ -15,11 +15,14 @@ import tarfile
 
 from mcnp_inputs import HomogeneousInput, build_pyne_matlib
 
+# reactor parameters to be sampled. Add parameters with caution
 _dimensions = ['AR', 'core_r', 'cool_r', 'PD', 'power', 'enrich']
 
 # number of samples for each sampled dimension
 nsamples = 100
 
+# Set dimension values. A tuple with range boundaries will sample the dimension
+# evenly using LHS, a float will set the dimension to the constant value
 dims = {'core_r'  : (20, 50),         
         'AR'      : (0.7, 1.3),
         'PD'      : (1.4, 1.6),        
@@ -40,10 +43,7 @@ def get_sampling_params():
     const = list(filter(lambda x: type(dims[x]) != tuple, dims.keys()))
     sampled = [x for x in dims.keys() if x not in const]
     
-    dim = len(sampled)
-
-    return sampled, const, dim
-
+    return sampled, const
 
 def gen_hypercube(samples, N):
     """Generate N-dimensional latin hypercube to sample dimensional reactor
@@ -139,8 +139,8 @@ def write_inputs(sampling_data):
     tarputs.close()
 
 if __name__=='__main__':
-    swept, const, dim = get_sampling_params()
-    cube = gen_hypercube(nsamples, dim)
+    swept, const = get_sampling_params()
+    cube = gen_hypercube(nsamples, len(swept))
     data = fill_data_array(swept, const, cube)
     write_inputs(data)
     # cleanup
