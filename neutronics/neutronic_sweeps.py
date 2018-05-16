@@ -45,7 +45,7 @@ def get_sampling_params():
     
     return sampled, const
 
-def gen_hypercube(samples, N):
+def gen_hypercube(samples, N, seed=4654562):
     """Generate N-dimensional latin hypercube to sample dimensional reactor
     space.
 
@@ -59,7 +59,7 @@ def gen_hypercube(samples, N):
         cube (ndarray): normalized, N-D latin hypercube
     """
 
-    np.random.seed(4654562)
+    np.random.seed(seed)
     hypercube = lhs(N, samples=samples)
 
     return hypercube
