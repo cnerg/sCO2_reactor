@@ -156,7 +156,10 @@ class HomogeneousInput:
         This function writes the MCNP6 input files for the leakage experiment using
         the template input string. It writes a bare and reflected core input file
         for each core radius.
-
+        
+        Arguments:
+        ----------
+            file_num (int): file number to define a filename
         Returns:
         --------
             filename (str): name of written MCNP6 input file
