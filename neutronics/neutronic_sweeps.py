@@ -40,7 +40,7 @@ def get_sampling_params():
         const (list): keys for constant parameters
         dim (float): length of sampled parameters for LHS sampling function.
     """
-    for item in dims:
+    for item in _dimensions:
         if type(dims[item]) != tuple:
             dims[item] = (dims[item], dims[item])
     
@@ -85,19 +85,16 @@ def fill_data_array(swept, cube):
     # initialize array
     rxt_confs = np.zeros(nsamples, dtype={'names' : list(dims.keys()),
                                           'formats' : ['f8']*len(dims)})
+
     # for all samples in latin hypercube
-    for sample_idx, sample in enumerate(cube):
-        # set values for every sampled dimension
-        for dim_idx, dim in enumerate(swept):
-            # skip constants
-            print(dims[dim])
-            l_limit = dims[dim][0]
-            u_limit = dims[dim][1]
-            # uniform distribution
-            width = u_limit - l_limit
-            # save to ndarray
-            rxt_confs[sample_idx][dim] = l_limit + cube[sample_idx][dim_idx] * width
-    
+    for didx, parm in enumerate(_dimensions):
+        l_limit = dims[parm][0]
+        u_limit = dims[parm][1]
+        # uniform distribution
+        width = u_limit - l_limit
+        
+        rxt_confs[parm] = np.add(l_limit, cube[:,didx]*width)
+
     return rxt_confs
 
 def write_inputs(sampling_data):
@@ -112,6 +109,9 @@ def write_inputs(sampling_data):
     pyne_mats = build_pyne_matlib()
     # initialize tarball to save input files
     tarputs = tarfile.open('smpl_mcnp_depl_inps.tar', 'w')
+    # write HTC input list
+    htc_inputs = open('input_list.txt', 'w')
+    
     # generate inputs
     for num, sample in enumerate(sampling_data):
         input = HomogeneousInput(sample['core_r'],
@@ -129,19 +129,16 @@ def write_inputs(sampling_data):
         # write the input and tar it
         filename = input.write_input(num, header_str)
         tarputs.add(filename)
-
-    # write HTC input list
-    htc_inputs = open('input_list.txt', 'w')
-    htc_inputs.write('\n'.join(glob.glob("*.i")))
+        os.remove(filename)
+        htc_inputs.write('{0}.i\n'.format(num))
+    
     htc_inputs.close()
-        
     tarputs.add('input_list.txt')
     tarputs.close()
+    os.remove('input_list.txt')
 
 if __name__=='__main__':
     swept = get_sampling_params()
     cube = gen_hypercube(nsamples, len(swept))
     data = fill_data_array(swept, cube)
     write_inputs(data)
-    # cleanup
-    os.system('rm *.i input_list.txt')
