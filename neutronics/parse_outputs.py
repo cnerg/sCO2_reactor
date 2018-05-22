@@ -40,20 +40,12 @@ def parse_header_string(lines, data):
     ----------
         lines (list): list of strings (one for each line)
 
-    Returns:
-    --------
-        
     """
     for line in lines:
         if '1-' in line:
-            parms = line.split()[1]            
-            data['AR'] = float(parms.split(',')[0])
-            data['core_r'] = float(parms.split(',')[1])
-            data['cool_r'] = float(parms.split(',')[2])
-            data['PD'] = float(parms.split(',')[3])
-            data['power'] = float(parms.split(',')[4])
-            data['enrich'] = float(parms.split(',')[5])
-            
+            vals = [float(x) for x in line.split()[1].split(',')[:6]]
+            for key, val in zip(ns._dimensions, vals):
+                data[key] = val
             # terminate parsing when header found
             break
 
@@ -69,13 +61,14 @@ def parse_keff(lines, data):
     err = []
     days = []
     BU = []
-    
     res_loc = []
+    
+    depletion_table_offset = 8
     for idx, line in enumerate(lines):
         if 'final result' in line:
             res_loc.append(idx)
         if 'print table 210' in line:
-            burndx = idx + 8
+            burndx = idx + depletion_table_offset
 
     # skip the predictor calcs 
     save_res = res_loc[0::2]
@@ -127,8 +120,9 @@ def parse_etal(lines, data):
         vals.append(valdata)
         errs.append(errdata)
     
+    bin_energies = bins[0][:-1] + np.diff(bins[0]) / 2
     # calculate average neutron energy
-    average = np.average(bins, weights=vals)    
+    average = np.sum(bin_energies * vals[0][1:]) / sum(vals[0][1:])
     data['ave_E'] = average
 
 def calc_fuel_mass_q_dens(data):
@@ -258,5 +252,6 @@ def save_store_data(data_dir='./results/*o'):
     np.savetxt("depl_results.csv", data, delimiter=',', 
            fmt='%10.5f', header=','.join(names))
   
-if __name__ == '__main__':
-    save_store_data('/mnt/sdb/calculation_results/sa_results/*o')
+#if __name__ == '__main__':
+#    save_store_data('/mnt/sdb/calculation_results/sa_results/*o')
+#    save_store_data('./ref/*o')
