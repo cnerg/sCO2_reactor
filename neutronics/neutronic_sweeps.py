@@ -7,6 +7,7 @@ depletion inputs to calculate keff at EOL.
 * power
 * enrich
 """
+
 from pyDOE import lhs
 import os
 import glob
@@ -33,12 +34,10 @@ dims = {'core_r'  : (20, 50),
 
 def get_sampling_params():
     """Decide which parameters are constants and which are ranges to be sampled.
-    
+    Convert constants (float) to ranges (tuples) with zero width.    
     Returns:
     --------
         sampled (list): list of keys for sampled parameters
-        const (list): keys for constant parameters
-        dim (float): length of sampled parameters for LHS sampling function.
     """
     for item in _dimensions:
         if type(dims[item]) != tuple:
