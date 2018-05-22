@@ -11,6 +11,7 @@ jobs:
                  command: |
                      export APP_ENV
                      APP_ENV=docker
+                     pip3 install pyDOE
                      pytest
 workflows:  
     version: 2
