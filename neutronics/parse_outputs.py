@@ -2,6 +2,7 @@ import operator
 import math
 import numpy as np
 import glob
+import sys
 
 # module imports
 import neutronic_sweeps as ns
@@ -12,6 +13,11 @@ sampled_params = ns._dimensions
 res = ['keff', 'ave_E', 'mass', 'q_dens', 'BOL_U', 'EOL_U', 'rel_depl', 'dU']
 names = sampled_params + res
 types = ['f8']*len(names)
+
+# conversion factors
+g_to_kg = 1e-3
+cc_to_l = 1e-3
+kW_to_W = 1e3
 
 def load_outputs(data_dir):
     """Load the MCNP output file string.
@@ -132,7 +138,6 @@ def calc_fuel_mass_q_dens(data):
     ----------
         data (ndarray): container to store results
     """
-    g_to_kg = 0.001
     core_r, r, PD, Q = data[['core_r', 'cool_r', 'PD', 'power']]
     c = 0.0031
     l = core_r*data['AR']
@@ -152,7 +157,7 @@ def calc_fuel_mass_q_dens(data):
     
     # calculate fuel volume, power density, mass
     fuel_vol = core_v * vfrac_cermet
-    data['q_dens'] = Q / (core_v / 1000) # W / l or MW/m^3
+    data['q_dens'] = (Q / core_v) * kW_to_W / cc_to_l # W / l or MW/m^3
     data['mass'] = fuel_vol * md.rho_UN * g_to_kg
     
 def parse_actinide_inventory(lines):
@@ -170,35 +175,31 @@ def parse_actinide_inventory(lines):
         act_inv (list): list of dicts with the actinide inventory at each time
         step.
     """
-    act_inv = {}
     tsteps =[]
-
-    offset = 4
-
+    header_offset = 4 
+    # find actinide inventory for each time step
     for idx, line in enumerate(lines):        
         if ' actinide inventory for material' in line:
-            tsteps.append(idx + offset)
+            tsteps.append(idx + headeroffset)
 
+    act_inv = {}
     for i, tidx in enumerate(tsteps):
-        step = 0
-        line = lines[tidx + step]
-
+        line = lines[tidx]
+        # for each time step collect actinide inventory (mass)
         while 'totals' not in line:
             data = line.split()
             ZAID = int(data[1])
             mass = float(data[2])
-
-            if ZAID in act_inv.keys():
-                act_inv[ZAID].append(mass)
-            else:
-                act_inv.update({ZAID : [0]*(i) + [mass]})
-            
-            step += 1
-            line = lines[tidx + step]
+            # update actinide inventory and append masses 
+            act_inv.setdefault(ZAID, [])
+            act_inv[ZAID].append(mass)
+            # next line
+            tidx += 1
+            line = lines[tidx]
 
     return act_inv
 
-def depletion_analysis(act_inv, data):
+def depletion_analysis(act_inv, data, file_num):
     """Post-process the actinide inventory results.
     
     Arguments:
@@ -207,16 +208,15 @@ def depletion_analysis(act_inv, data):
         step.
         data (ndarray): container to store results
     """
-    BOL = act_inv[92235][0] / 1000.0
-    EOL = act_inv[92235][-1] / 1000.0
+    data['BOL_U'] = act_inv[92235][0] * g_to_kg
+    data['EOL_U'] = act_inv[92235][-1] * g_to_kg
+    data['dU'] = data['BOL_U'] - data['EOL_U']
+    data['rel_depl'] = data['dU'] / data['mass']
     
-    data['BOL_U'] = BOL
-    data['EOL_U'] = EOL
-
-    delta_rel = abs(EOL - BOL) / data['mass']
-
-    data['rel_depl'] = delta_rel
-    data['dU'] = abs(EOL - BOL)
+    if data['dU'] < 0:
+        print("Error, non-physical depletion results, EOL uranium mass > BOL\
+uranium mass. Check file {0}".format(file_num))
+        sys.exit()
 
 def save_store_data(data_dir='./results/*o'):
     """Parse every MCNP6 output for neutronics and mass/qdens results.
@@ -246,7 +246,7 @@ def save_store_data(data_dir='./results/*o'):
         act_inv = parse_actinide_inventory(string)
         # post-process the results
         calc_fuel_mass_q_dens(data[idx])
-        depletion_analysis(act_inv, data[idx])
+        depletion_analysis(act_inv, data[idx], file)
     
     # save data to csv file
     np.savetxt("depl_results.csv", data, delimiter=',', 
