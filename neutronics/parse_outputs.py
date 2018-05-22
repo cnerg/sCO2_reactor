@@ -180,7 +180,7 @@ def parse_actinide_inventory(lines):
     # find actinide inventory for each time step
     for idx, line in enumerate(lines):        
         if ' actinide inventory for material' in line:
-            tsteps.append(idx + headeroffset)
+            tsteps.append(idx + header_offset)
 
     act_inv = {}
     for i, tidx in enumerate(tsteps):
