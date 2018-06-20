@@ -11,6 +11,10 @@ jobs:
                  command: |
                      export APP_ENV
                      APP_ENV=docker
+                     pip3 install pyDOE
+                     cd neutronics/
+                     pytest
+                     cd ../optimization/
                      pytest
 workflows:  
     version: 2
