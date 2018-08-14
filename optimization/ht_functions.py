@@ -24,7 +24,6 @@ def oned_flow_modeling(analyze_flow):
     find_n_channels(analyze_flow)
     analyze_flow.adjust_dp()
     analyze_flow.calc_reactor_mass()
-    analyze_flow.calc_aspect_ratio()
 
 
 def _calc_n_channels_error(guess, flowiteration):
@@ -91,9 +90,10 @@ class Flow:
     mass = 0  # fuel mass
     A_fuel = 0  # fuel cross-sectional area
     A_flow = 0  # flow cross-sectional area
-    guess_channels = 0  # guess value to number of fuel channels
+    guess_channels = 2  # guess value to number of fuel channels
     N_channels = 0  # number of required fuel channels for given flow conditions
-
+    
+    core_r = 0.1 # guess core radius
     # flow parameters
     D_e = 0  # hydraulic diameter
     v = 0  # flow velocity
@@ -107,7 +107,7 @@ class Flow:
     q_bar = 0  # axially-averaged volumetric generation
     q_per_channel = 0  # generation per fuel channel
 
-    def __init__(self, radius, PD, c, L, flowprops=FlowProperties()):
+    def __init__(self, cool_r, c, AR, flowprops=FlowProperties()):
         """Initialize the flow iteration class.
 
         Initialized Attributes:
@@ -117,16 +117,12 @@ class Flow:
             pitch: fuel thickness (minor axis of hexagon) [m]
             L: length of core [m]
         """
-        self.pd_ratio = PD
-        self.r_channel = radius
+        self.fuel = 'UO2-CO2'
+        self.AR = AR
         self.c = c
-        self.pitch = (self.r_channel + self.c) * self.pd_ratio * 2
-        self.L = L
+        self.r_channel = cool_r
         # set up geometry
         self.set_geom()
-        # get equivalent annular radii for q_bar calculations
-        self.r_i = self.r_channel + self.c
-        self.r_o = self.pitch / math.sqrt(3)
         self.fps = flowprops
         self.dT = const['T_center'] - self.fps.T  # temp. drop fuel -> coolant
 
@@ -139,11 +135,25 @@ class Flow:
             A_fuel: fuel area per fuel channel. [m^2]
             D_e: equivalent flow diameter [m]
         """
-        self.A_flow = self.r_channel ** 2 * math.pi
-        self.A_fuel = math.sqrt(3)*self.pitch**2 / 2.0 -\
-            (self.r_channel + self.c) ** 2 * math.pi
-        self.D_e = 2.0 * self.r_channel
+        self.A_flow = (self.r_channel ** 2 * math.pi) * self.guess_channels
+        self.A_fuel = self.core_r ** 2 * math.pi - self.A_flow
 
+        self.fuel_frac = self.A_fuel / (self.A_flow + self.A_fuel)
+        
+        # define core radius with criticality constraint
+        self.constrain_radius()
+        
+        self.L = self.AR * self.core_r
+
+        self.vol_per_channel = self.A_fuel / self.guess_channels
+        
+        # get pitch from fuel area
+        self.pitch = math.sqrt(2*self.A_fuel / (3*math.sqrt(3)))
+        
+        # get equivalent annular radii for q_bar calculations
+        self.r_i = self.r_channel + self.c
+        self.r_o = self.pitch / 2.0
+        
     def characterize_flow(self):
         """Calculate important non-dim and dim flow parameters. These parameters
         are required to determine generation per fuel channel.
@@ -157,6 +167,8 @@ class Flow:
             f: friction factor [-]
             h_bar: heat transfer coefficient [W/m^2-K]
         """
+        # hydraulic diametre
+        self.D_e = 2.0 * self.r_channel
         # calculate mass flux
         G_dot = self.fps.m_dot / (self.A_flow * self.guess_channels)
         # calculate flow velocity from mass flux
@@ -209,7 +221,8 @@ class Flow:
 
         # consider axial flux variation
         self.q_bar = q_trip_max * 2 / math.pi
-        self.q_per_channel = self.q_bar * self.A_fuel * self.L
+    
+        self.q_per_channel = self.q_bar * self.vol_per_channel
 
         # calculate required fuel channels
         self.N_channels = self.fps.Q_therm / self.q_per_channel
@@ -265,17 +278,6 @@ class Flow:
 
         return req_channels
 
-    def calc_aspect_ratio(self):
-        """Estimate the core aspect ratio (L/D).
-
-        Modified Attributes:
-        --------------------
-            AR: core aspect ratio [-]
-        """
-        total_area = (self.A_fuel + self.A_flow) * self.N_channels
-        equivalent_radius = math.sqrt(total_area / math.pi)
-        self.AR = self.L / (2*equivalent_radius)
-
     def compute_channels_from_guess(self, inp_guess):
         """Perform single 1D heat flow calculation. This method calls the
         required methods to perform one iteration of the calculation.
@@ -305,6 +307,19 @@ class Flow:
         """
         self.Vol_fuel = self.A_fuel * self.L * self.N_channels
         self.mass = self.Vol_fuel * const['rho_fuel']
+    
+    def constrain_radius(self):
+        """Constrain the core radius based on criticality requirements.
+        """
+
+        coeffs = { 'UO2-CO2' : (0.16271, -0.8515),
+                   'UO2-H2O' : (0.1706,  -0.61361),
+                   'UW-CO2'  : (0.15385, -0.8309),
+                   'UW-H2O'  : (0.16270, -0.6487)
+                 }
+        
+        self.core_r = coeffs[self.fuel][0] *\
+                      self.fuel_frac ** coeffs[self.fuel][1] 
 
 
 class ParametricSweep():

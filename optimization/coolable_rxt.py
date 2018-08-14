@@ -17,24 +17,22 @@ def main():
     parser.add_argument("radius", type=float,
                         help="coolant channel radius [m]")
     parser.add_argument(
-        "PD", type=float, help="fuel pitch / cool. diameter [-]")
-    parser.add_argument("core_z", type=float, help="core axial height [m]")
+        "AR", type=float, help="core aspect ratio [-]")
     parser.add_argument("clad_t", type=float, help="cladding thickness [m]")
 
     args = parser.parse_args()
 
-    if args.PD <= 1:
-        print("Error: Fuel pitch must be greater than coolant channel\
-        diameter!, set PD > 1")
-        sys.exit()
     # perform calculation
-    test = Flow(args.radius, args.PD, args.clad_t, args.core_z)
+    test = Flow(args.radius, args.clad_t, args.AR)
     oned_flow_modeling(test)
     # print results
     data = test.__dict__
     del data['fps']
-    data = {str(round(data[key], 3)) for key in sorted(data.keys())}
-    print(data)
+    del data['fuel']
+    
+    for item in sorted(data): 
+        disp = "{0}: {1:.3f}".format(item, data[item])
+        print(disp)
 
 if __name__ == '__main__':
     main()

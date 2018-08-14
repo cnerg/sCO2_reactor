@@ -50,8 +50,8 @@ class FlowProperties:
             dp_limit: (float) power-cycle constrained dp [Pa]
         """
         # default flow properties
-        primary_properties = {'m_dot' : 0.75, # coolant flow [kg/s]
-                              'Q_therm' : 131000, # core thermal power [W]
+        primary_properties = {'m_dot' : 0.2, # coolant flow [kg/s]
+                              'Q_therm' : 200000, # core thermal power [W]
                               'T' : 1031.45, # bulk coolant temp [K]
                               'P' : 1.766e7, # bulk coolant pressure [Pa]
                               'dp_limit' : 483500, # pressure drop limit [Pa]
