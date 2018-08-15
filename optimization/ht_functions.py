@@ -40,7 +40,7 @@ def _calc_n_channels_error(guess, flowiteration):
         error: difference between guess fuel channels and calculated required
         N_channels (float)
     """
-    return flowiteration.compute_channels_from_guess(guess)
+    return flowiteration.compute_Q_from_guess(guess)
 
 
 def find_n_channels(flow):
@@ -57,7 +57,7 @@ def find_n_channels(flow):
         none
 
     """
-    res = minimize_scalar(_calc_n_channels_error, bounds=(1, 1e9), args=(flow),
+    res = minimize_scalar(_calc_n_channels_error, bounds=(1, 5e2), args=(flow),
                           method='Bounded', options={'xatol': 1e-3})
 
 
@@ -90,8 +90,7 @@ class Flow:
     mass = 0  # fuel mass
     A_fuel = 0  # fuel cross-sectional area
     A_flow = 0  # flow cross-sectional area
-    guess_channels = 2  # guess value to number of fuel channels
-    N_channels = 0  # number of required fuel channels for given flow conditions
+    N_channels = 1  # number of required fuel channels for given flow conditions
     
     core_r = 0.1 # guess core radius
     # flow parameters
@@ -107,6 +106,8 @@ class Flow:
     q_bar = 0  # axially-averaged volumetric generation
     q_per_channel = 0  # generation per fuel channel
 
+    iterations = 0
+
     def __init__(self, cool_r, c, AR, flowprops=FlowProperties()):
         """Initialize the flow iteration class.
 
@@ -117,7 +118,7 @@ class Flow:
             pitch: fuel thickness (minor axis of hexagon) [m]
             L: length of core [m]
         """
-        self.fuel = 'UO2-CO2'
+        self.fuel = 'UW-CO2'
         self.AR = AR
         self.c = c
         self.r_channel = cool_r
@@ -135,25 +136,30 @@ class Flow:
             A_fuel: fuel area per fuel channel. [m^2]
             D_e: equivalent flow diameter [m]
         """
-        self.A_flow = (self.r_channel ** 2 * math.pi) * self.guess_channels
-        self.A_fuel = self.core_r ** 2 * math.pi - self.A_flow
-
+        self.iterations += 1
+        
+        self.A_flow = (self.r_channel ** 2 * math.pi) * self.N_channels
+        self.A_fuel = (self.core_r ** 2 * math.pi) - self.A_flow
+        
+        # fuel fraction
         self.fuel_frac = self.A_fuel / (self.A_flow + self.A_fuel)
         
-        # define core radius with criticality constraint
+        
         self.constrain_radius()
         
+        # reset geom with new core radius
         self.L = self.AR * self.core_r
+        
+        self.A_flow = (self.r_channel ** 2 * math.pi) * self.N_channels
+        self.A_fuel = (self.core_r ** 2 * math.pi) - self.A_flow
+        
+        self.vol_fuel = self.A_fuel * self.L
 
-        self.vol_per_channel = self.A_fuel / self.guess_channels
+        self.pitch = math.sqrt(2*(self.A_fuel / self.N_channels) / (3*math.sqrt(3)))
         
-        # get pitch from fuel area
-        self.pitch = math.sqrt(2*self.A_fuel / (3*math.sqrt(3)))
-        
-        # get equivalent annular radii for q_bar calculations
         self.r_i = self.r_channel + self.c
-        self.r_o = self.pitch / 2.0
-        
+        self.r_o = self.pitch / 2
+
     def characterize_flow(self):
         """Calculate important non-dim and dim flow parameters. These parameters
         are required to determine generation per fuel channel.
@@ -170,7 +176,7 @@ class Flow:
         # hydraulic diametre
         self.D_e = 2.0 * self.r_channel
         # calculate mass flux
-        G_dot = self.fps.m_dot / (self.A_flow * self.guess_channels)
+        G_dot = self.fps.m_dot / self.A_flow
         # calculate flow velocity from mass flux
         self.v = G_dot / self.fps.rho
         # calculate Reynolds Number
@@ -221,11 +227,9 @@ class Flow:
 
         # consider axial flux variation
         self.q_bar = q_trip_max * 2 / math.pi
-    
-        self.q_per_channel = self.q_bar * self.vol_per_channel
 
-        # calculate required fuel channels
-        self.N_channels = self.fps.Q_therm / self.q_per_channel
+        # calculate achievable thermal power
+        self.Q_therm = self.q_bar * self.vol_fuel
 
     def calc_dp(self):
         """Calculate axial pressure drop across the reactor core.
@@ -254,8 +258,7 @@ class Flow:
         self.calc_dp()
         while self.dp > self.fps.dp_limit:
             # set N_channels and guess_channels
-            self.guess_channels = self.get_dp_constrained_Nchannels()
-            self.N_channels = self.guess_channels
+            self.N_channels = self.get_dp_constrained_Nchannels()
             self.characterize_flow()
             self.calc_dp()
 
@@ -278,7 +281,7 @@ class Flow:
 
         return req_channels
 
-    def compute_channels_from_guess(self, inp_guess):
+    def compute_Q_from_guess(self, inp_guess):
         """Perform single 1D heat flow calculation. This method calls the
         required methods to perform one iteration of the calculation.
 
@@ -291,11 +294,12 @@ class Flow:
                 and the calculate N_channels
         """
 
-        self.guess_channels = inp_guess
+        self.N_channels = inp_guess
+        self.set_geom()
         self.characterize_flow()
         self.get_q_per_channel()
-
-        return (self.guess_channels - self.N_channels)**2
+        
+        return (self.Q_therm - self.fps.Q_therm)**2
 
     def calc_reactor_mass(self):
         """Based on results of the iteration, calculate the reactor mass.
@@ -305,8 +309,7 @@ class Flow:
             Vol_fuel: total fuel volume [m^3]
             mass: total fuel mass[kg]
         """
-        self.Vol_fuel = self.A_fuel * self.L * self.N_channels
-        self.mass = self.Vol_fuel * const['rho_fuel']
+        self.mass = self.vol_fuel * const['rho_fuel']
     
     def constrain_radius(self):
         """Constrain the core radius based on criticality requirements.
@@ -319,7 +322,7 @@ class Flow:
                  }
         
         self.core_r = coeffs[self.fuel][0] *\
-                      self.fuel_frac ** coeffs[self.fuel][1] 
+                      math.pow(self.fuel_frac, coeffs[self.fuel][1])
 
 
 class ParametricSweep():
