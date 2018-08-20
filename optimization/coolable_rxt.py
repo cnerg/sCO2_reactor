@@ -31,8 +31,10 @@ def main():
     del data['fuel']
     
     for item in sorted(data): 
-        disp = "{0}: {1:.3f}".format(item, data[item])
+        disp = "{0}: {1:.3e}".format(item, data[item])
         print(disp)
+
+    print("Power: {0:.3f} [kW]".format(test.Q_therm / 1000))
 
 if __name__ == '__main__':
     main()
