@@ -10,11 +10,13 @@ fuel_props = {'UW' : {
                 'rho_UN'    : 11300,  # fuel density [kg/m^3]
                 'fuel_frac' : 0.6,    # volume fraction of fuel in CERMET
                 'k_fuel'    : 51
+#                'k_fuel'    : 51000000
                      },
               'UO2' : {
                 'T_center'  : 1705.65, # centerline fuel temp (max) [K]
                 'rho_fuel'  : 10970,  # clad density [kg/m^3]
                 'k_fuel'    : 3.6      # fuel thermal conductivity [W/m-k]
+#                'k_fuel'    : 51000000      # fuel thermal conductivity [W/m-k]
                       }
 
              }
@@ -28,6 +30,7 @@ fuel_props['UW'].update( {'rho_fuel' : fuel_props['UW']['fuel_frac'] *
 
 cool_props = {'CO2' : {
                   'k_cool'   : 79.082e-3,
+#                  'k_cool'   : 51000000,
                   'rho'      : 233.89,
                   'mu'       : 45.905e-6,
                   'Pr'       : 0.76273,
@@ -39,6 +42,7 @@ cool_props = {'CO2' : {
 
                'H2O' : {
                   'k_cool'   : 149.95e-3,
+#                  'k_cool'   : 51000000,
                   'rho'      : 123.48,
                   'mu'       : 42.209e-6,
                   'Pr'       : 0.8941,
