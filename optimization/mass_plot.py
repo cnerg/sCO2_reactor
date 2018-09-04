@@ -7,20 +7,28 @@ parameters (provided as arguments).
 The following functions are contained in this module:
     *oneD_flow_modeling
 """
+# import required modules
 import matplotlib.pyplot as plt
 import numpy as np
-# import required modules
 import argparse
+from scipy.optimize import curve_fit
+import pandas
+
 # import Flow class
 from ht_functions import Flow, oned_flow_modeling
 # import physical properties
 import physical_properties as pp
 
+savevals = ['gen_Q', 'mass', 'Re', 'h_bar', 'fuel_frac', 'Nu', 'core_r', 'A_flow']
 critical_mass = {'UO2-CO2' : 51.07,
                  'UO2-H2O' : 51.07,
                  'UW-CO2'  : 167.2,
                  'UW-H2O'  : 167.2
                 }
+
+def lin_func(xdata, coeffs):
+    
+    return np.add(np.multiply(coeffs[0], xdata), coeffs[1])
 
 def make_rxtr(fuel, coolant, power, cool_r=0.005, clad_t=0.00031, AR=1):
     
@@ -38,80 +46,100 @@ def power_dependence(fuel, coolant):
     x = []
     y = []
 
-    for Q in np.arange(90000, 200000, 1000):
-        x.append(Q)
-        
+    powers = np.arange(90000, 200000, 400)
+    
+
+    data = np.zeros(len(powers), dtype={'names' : savevals,
+                                        'formats' : ['f8']*len(savevals)})
+                                    
+    for idx, Q in enumerate(powers):
         rxtr = make_rxtr(fuel, coolant, Q)
-        
-        y.append(rxtr)
+        for key in savevals:
+            data[idx][key] = rxtr.__dict__[key]
 
-    return (x, y)
+    return data
 
-def plot_results(results, dep):
+def plot_results(results, ind, dep):
     """Plot mass results as function of power
     """
 
-    line_formats = {'UO2-CO2' : 'g--',
-                    'UO2-H2O' : 'g-',
+    labels = {'mass' : 'Reactor Mass [kg]',
+              'Re' : 'Reynolds Number [-]',
+              'h_bar' : 'Heat Transfer Coefficient [W/m^2-K]',
+              'fuel_frac' : 'Core Fuel Fraction [-]',
+              'Nu' : 'Nusselt Number [-]',
+              'core_r' : 'Core Radius [m]',
+              'A_flow' : 'Coolant Flow Area [m]',
+              'gen_Q'  : 'Core Thermal Power [W]'
+             }
+
+    line_formats = {'UO2-CO2' : 'r--',
+                    'UO2-H2O' : 'r-',
                     'UW-CO2'  : 'b--',
                     'UW-H2O'  : 'b-'}
 
     fig, ax = plt.subplots()
 
     for rxtr in sorted(results):
-        y = [x.__dict__[dep] for x in results[rxtr][1]]
-        power = results[rxtr][0]
-        ax.plot(power, y, line_formats[rxtr], label=rxtr)
+        res = results[rxtr]
+        ax.plot(res[ind], res[dep], line_formats[rxtr], label=rxtr)
     
     plt.legend()
-    plt.title('{0} vs. Thermal Power'.format(dep))
-    plt.xlabel('Core Thermal Power [W]')
-    plt.ylabel(dep)
-    plt.savefig('{0}_vs_power.png'.format(dep), dpi=700) 
+    title1 = " ".join(labels[dep].split()[:-1])
+    title2 = " ".join(labels[ind].split()[:-1])
+    plt.title('{0} vs. {1}'.format(title1, title2))
+    plt.xlabel(labels[ind])
+    plt.ylabel(labels[dep])
+    plt.savefig('{0}_vs_{1}.png'.format(dep, ind), dpi=700) 
 
 def stacked_area_plot(results):
-    
+    """Plot the contributions to reactor mass for neutronic and thermal limits.
+    """
     for rxtr in results:
-        crit_mass = np.array([critical_mass[rxtr]]*len(results[rxtr][0]))
+        res = results[rxtr]
+        crit_mass = [critical_mass[rxtr]]*len(results[rxtr])
         fig, ax = plt.subplots()
-        power = results[rxtr][0]
-        mass = [x.mass for x in results[rxtr][1]]
 
-        ax.stackplot(power, crit_mass, mass, labels=['critical mass', 'coolable mass'])
+        ax.stackplot(res['gen_Q'], crit_mass, res['mass'], labels=['critical mass', 'coolable mass'])
         box = ax.get_position()
         ax.set_position([box.x0, box.y0 + box.height * 0.1,
                          box.width, box.height * 0.9])
-
+        plt.title(rxtr)
+        plt.xlabel('Thermal Power [W]')
+        plt.ylabel('Mass [kg]')
         # Put a legend below current axis
-        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05),
-                  fancybox=True, shadow=True, ncol=5)
+        plt.legend(loc='upper left')
         plt.savefig('{0}_stacked_area.png'.format(rxtr)) 
 
 def gen_data():
-
+    """Get data for all 4 reactor configurations
+    """
     rxtr_configs = ['UO2-CO2', 'UO2-H2O', 'UW-CO2', 'UW-H2O']
     results = {}
 
     for config in rxtr_configs:
-        savefile = open(config + '.txt', 'w')
         fuel = config.split('-')[0]
         cool = config.split('-')[1]
+        
         results[config] = power_dependence(fuel, cool)
-        
-        for idx, res in enumerate(results[config][0]):
-            savefile.write('{0} {1}\n'.format(res,
-                results[config][1][idx].Re)) 
-        
-        savefile.close()
+        np.savetxt(config + '.csv', results[config], delimiter=',',
+                   fmt='%10.5f', header=','.join(savevals))
+
     return results
 
+def fit_power_curve(power, mass):
+    """Get curve fit for power mass relationship.
+    """
+    popt, pcov = curve_fit(lin_func, power, mass)
 
+    return popt, pcov
 
 data = gen_data()
-plot_results(data, 'mass')
-plot_results(data, 'gen_Q')
-plot_results(data, 'Re')
-plot_results(data, 'fuel_frac')
-plot_results(data, 'core_r')
-plot_results(data, 'h_bar')
-stacked_area_plot(data)
+plot_results(data, 'gen_Q', 'mass')
+plot_results(data, 'gen_Q', 'Re')
+plot_results(data, 'gen_Q', 'fuel_frac')
+plot_results(data, 'gen_Q', 'core_r')
+plot_results(data, 'gen_Q', 'A_flow')
+plot_results(data, 'gen_Q', 'h_bar')
+plot_results(data, 'Re', 'Nu')
+#stacked_area_plot(data)

@@ -4,9 +4,88 @@ import numpy as np
 import operator
 import sys
 from scipy.optimize import minimize, minimize_scalar
+from scipy.interpolate import interp1d
 # Import physical constants
 from physical_properties import fuel_props, FlowProperties
 
+def pipeflow_turbulent(Re, Pr, LD, relrough):
+    """Turbulent pipeflow correlation from EES
+    """
+
+    #From Li, Seem, and Li, "IRJ, 
+    #"A New Explicity Equation for Accurate Friction Factor 
+    # Calculation for Smooth Tubes" 2011
+    f_fd=(-0.001570232/math.log(Re) +
+           0.394203137/math.log(Re)**2 +
+           2.534153311/math.log(Re)**3) * 4 
+    
+    if relrough > 1e-5:
+        #Offor and Alabi, 
+        #Advances in Chemical Engineering and Science, 2016, 6, 237-245
+        f_fd=(-2*math.log(
+                 relrough/3.71 -
+                 1.975/Re * math.log((relrough/3.93)**1.092 +
+                 7.627/(Re + 395.9)), 10)) ** (-2)
+
+    #Gnielinski, V.,, Int. Chem. Eng., 16, 359, 1976
+    Nusselt_L= ((f_fd/8)*(Re-1000)*Pr)/(1+12.7*math.sqrt(f_fd/8)*(Pr **(2/3) - 1)) 
+    
+    if (Pr<0.5):
+        # Notter and Sleicher, Chem. Eng. Sci., Vol. 27, 1972
+        Nusselt_L_lp =4.8 + 0.0156 * Re**0.85 * Pr**0.93
+        if (Pr<0.1):
+            Nusselt_L = Nusselt_L_lp
+        else:
+            Nusselt_L = Nusselt_L_lp+(Pr-0.1)*(Nusselt_L-Nusselt_L_lp)/0.4
+
+    #account for developing flow
+    f=f_fd*(1+(1/LD)**0.7) 
+    Nusselt_L*(1+(1/LD)**0.7)
+    
+    return Nusselt_L, f
+
+def pipeflow_laminar(Re, Pr, LD, relrough):
+    """laminar pipeflow correlation from EES
+    """
+
+    Gz = Re* Pr /LD     
+    x = LD / Re
+    fR = 3.44 / math.sqrt(x) +\
+        (1.25/(4*x) + 16 - 3.44/math.sqrt(x)) /\
+        (1 + 0.00021 * x**(-2))
+
+    f = 4 * fR / Re
+    Gm = Gz**(1/3)
+    Nusselt_T = 3.66 + ((0.049+0.02/Pr)*Gz**1.12)/(1+0.065*Gz**0.7)
+    Nusselt_H = 4.36 + ((0.1156 +0.08569 /Pr**0.4)*Gz)/(1+0.1158*Gz**0.6) 
+    
+    return Nusselt_T, Nusselt_H, f
+    
+def pipeflow_nd(Re, Pr, LD, relrough):
+    """Nusselt correlation procedure from EES.
+    """
+    if Re > 3000:
+        Nusselt_T, f = pipeflow_turbulent(Re, Pr, LD, relrough)
+        Nusselt_H = Nusselt_T
+    elif Re < 2300:
+        Nusselt_T, Nusselt_H, f = pipeflow_laminar(Re, Pr, LD, relrough)
+    else:
+        # transistion from laminar to turbulent
+        
+        # get turbulent
+        Nusselt_T, f = pipeflow_turbulent(3000, Pr, LD, relrough)
+        Nusselt_H = Nusselt_T
+        
+        # get laminar
+        Nusselt_lam_T, Nusselt_lam_H, f_lam = pipeflow_laminar(2300, Pr, LD, relrough)
+        
+        # mix the two
+        Nusselt_T=Nusselt_lam_T+(Re-2300)/(3000-2300)*(Nusselt_T-Nusselt_lam_T) 
+        Nusselt_H=Nusselt_lam_H+(Re-2300)/(3000-2300)*(Nusselt_H-Nusselt_lam_H) 
+
+        f=f_lam+(Re-2300)/(3000-2300)*(f-f_lam) 
+
+    return Nusselt_T, Nusselt_H, f
 
 def oned_flow_modeling(analyze_flow):
     """1D calculation.
@@ -124,6 +203,7 @@ class Flow:
         self.AR = AR
         self.c = c
         self.r_channel = cool_r
+        self.rough = 1.5e-6
         # set up geometry
         self.set_geom()
         self.fps = flowprops
@@ -142,7 +222,8 @@ class Flow:
         self.A_flow = self.core_r**2 * math.pi * (1 - self.fuel_frac)
         self.A_fuel = (self.core_r**2 * math.pi) * self.fuel_frac
         
-        self.L = self.AR * self.core_r 
+        self.L = self.AR * self.core_r
+        self.LD = self.L / self.r_channel
         self.vol_fuel = self.A_fuel * self.L
         self.vol_cool = self.A_flow * self.L
 
@@ -150,6 +231,8 @@ class Flow:
         self.radius_cond = math.sqrt(self.A_fuel / self.N_channels) / 2
         self.XS_A_cond = math.pi * self.r_channel * self.L * 2 * self.N_channels
         
+        self.relrough = self.rough / (self.r_channel*2)
+
     def characterize_flow(self):
         """Calculate important non-dim and dim flow parameters. These parameters
         are required to determine generation per fuel channel.
@@ -172,11 +255,9 @@ class Flow:
         # calculate Reynolds Number
         self.Re = self.fps.rho * self.v * self.D_e / self.fps.mu
         # Dittus-Boelter equation (9-22) from El-Wakil
-        self.Nu = 0.023*math.pow(self.Re, 0.8)*math.pow(self.fps.Pr, 0.4)
+        self.Nu, Nu_H, self.f = pipeflow_nd(self.Re, self.fps.Pr, self.LD, self.relrough)
         # heat transfer coefficient
         self.h_bar = self.Nu * self.fps.k_cool / self.D_e
-        # Darcy-Weisbach friction factor for pressure drop correlation El Wakil (9-4)
-        self.f = 0.184 / math.pow(self.Re, 0.2)
 
     def get_q_per_channel(self):
         """Calculate achievable average volumetric generation:
