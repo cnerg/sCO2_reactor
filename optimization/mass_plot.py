@@ -19,7 +19,8 @@ from ht_functions import Flow, oned_flow_modeling
 # import physical properties
 import physical_properties as pp
 
-savevals = ['gen_Q', 'mass', 'Re', 'h_bar', 'fuel_frac', 'Nu', 'core_r', 'A_flow']
+savevals = ['gen_Q', 'mass', 'Re', 'h_bar', 'fuel_frac', 'Nu', 'core_r',
+        'A_flow', 'N_channels']
 critical_mass = {'UO2-CO2' : 51.07,
                  'UO2-H2O' : 51.07,
                  'UW-CO2'  : 167.2,
