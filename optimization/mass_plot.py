@@ -46,7 +46,7 @@ def power_dependence(fuel, coolant):
     x = []
     y = []
 
-    powers = np.arange(90000, 200000, 400)
+    powers = np.arange(90000, 200000, 4583)
     
 
     data = np.zeros(len(powers), dtype={'names' : savevals,

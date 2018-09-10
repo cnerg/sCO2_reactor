@@ -223,7 +223,7 @@ class Flow:
         self.A_fuel = (self.core_r**2 * math.pi) * self.fuel_frac
         
         self.L = self.AR * self.core_r
-        self.LD = self.L / self.r_channel
+        self.LD = self.L / (self.r_channel*2)
         self.vol_fuel = self.A_fuel * self.L
         self.vol_cool = self.A_flow * self.L
 
