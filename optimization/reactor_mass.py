@@ -8,6 +8,9 @@ def reactor_mass(fuel, coolant, power, m_dot, T, P,
                  cool_r=0.005, clad_t=0.00031, AR=1):
     """Produce the mass of a valid reactor design given flow conditions and
     required thermal power output.
+
+        Arguments:
+        ----------
     """
 
     # get coolant properties
