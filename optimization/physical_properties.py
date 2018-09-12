@@ -10,15 +10,12 @@ fuel_props = {'UW' : {
                 'rho_UN'    : 11300,  # fuel density [kg/m^3]
                 'fuel_frac' : 0.6,    # volume fraction of fuel in CERMET
                 'k_fuel'    : 51
-#                'k_fuel'    : 51000000
                      },
               'UO2' : {
                 'T_center'  : 1705.65, # centerline fuel temp (max) [K]
                 'rho_fuel'  : 10970,  # clad density [kg/m^3]
                 'k_fuel'    : 3.6      # fuel thermal conductivity [W/m-k]
-#                'k_fuel'    : 51000000      # fuel thermal conductivity [W/m-k]
                       }
-
              }
 
 # mixed fuel density for Uranium Cermet Fuel
@@ -28,37 +25,12 @@ fuel_props['UW'].update( {'rho_fuel' : fuel_props['UW']['fuel_frac'] *
                                 fuel_props['UW']['rho_W']} )
 
 
-cool_props = {'CO2' : {
-                  'k_cool'   : 79.082e-3,
-#                  'k_cool'   : 51000000,
-                  'rho'      : 233.89,
-                  'mu'       : 45.905e-6,
-                  'Pr'       : 0.76273,
-                  'm_dot'    : 0.8, 
-                  'T'        : 975,
-                  'P'        : 50e6,
-                  'dp_limit' : 483500
-                      },
-
-               'H2O' : {
-                  'k_cool'   : 149.95e-3,
-#                  'k_cool'   : 51000000,
-                  'rho'      : 123.48,
-                  'mu'       : 42.209e-6,
-                  'Pr'       : 0.8941,
-                  'm_dot'    : 0.2, 
-                  'T'        : 975,
-                  'P'        : 50e6,
-                  'dp_limit' : 483500
-                       } 
-             }
-
 class FlowProperties:
     """Class to store flow properties and calculate secondary properties from
     fundamental props.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, coolant, power, m_dot, temp, pressure):
         """Inialize FlowProperties class and load required flow property data.
 
         Modified Attributes:
@@ -69,32 +41,12 @@ class FlowProperties:
             P: (float) bulk coolant pressure [Pa]
             dp_limit: (float) power-cycle constrained dp [Pa]
         """
-        # default flow properties
-        primary_properties = {'m_dot' : 0.8, # coolant flow [kg/s]
-                              'T' : 975, # bulk coolant temp [K]
-                              'P' : 1.766e7, # bulk coolant pressure [Pa]
-                              'dp_limit' : 483500, # pressure drop limit [Pa]
-                             }
-        
-        if 'all_inp' in kwargs.keys():
-            self.__dict__ = cool_props[kwargs['all_inp']]
-            return
-
-        # load optional custom flow properties
-        if 'prime_inp' in kwargs.keys():
-            primary_properties = kwargs['prime_inp']
-
-        # store the input flow properites
-        for property in primary_properties:
-            self.__dict__[property] = primary_properties[property]
-        
-        # load secondary properties
-        if 'second_inp' in kwargs.keys():
-            for prop in kwargs['second_inp']:
-                self.__dict__[property] = kwargs['second_inp'][prop]
-        else:
-            # estimate secondary properties 
-            self.secondary_properties()
+        self.m_dot = m_dot
+        self.Q_therm = power
+        self.T = (temp[0] + temp[1]) / 2
+        self.dp_limit = abs(pressure[1] - pressure[0])
+        self.cool = coolant
+        self.secondary_properties()
 
     def secondary_properties(self):
         """Calculate secondary properties from primary flow properties. Using
@@ -109,20 +61,30 @@ class FlowProperties:
             rho: (float) coolant density [kg/m^3]
             Pr: (float) cooland Prandtl number [-]
         """
+        fit = {
         # temperature limit for curve fits
-        fit = {'t_limit' : (900, 1200),
+        'H2O' : {'t_limit' : (790, 1100),
                # coefficients for linear fit f(T) = A*T + b
                #                   k         mu         rho       Cp
-               'A' : np.array([7.0182e-5, 2.6652e-8, -0.080314, 0.255]),
-               'B' : np.array([0.0135,    1.32523e-5, 167.308,  977.66])
-              }
+               'A' : np.array([0.00015,    3.4757E-8, -0.03012,  0.2526]),
+               'B' : np.array([0.0010235,  1.3711E-5, 61.25238,  2343.3392])
+                },
+        'CO2' : {'t_limit' : (790, 1100),
+               # coefficients for linear fit f(T) = A*T + b
+               #                   k           mu         rho         Cp
+               'A' : np.array([5.97036E-5, 2.5034E-8, -0.062477, 0.14586]),
+               'B' : np.array([0.0302958,  2.4244E-5, 134.47062, 1166.915214])
+                }
+        }
         # if the input temperature is out of range of the fit, print a warning
         # message
-        if self.T < fit['t_limit'][0] or self.T > fit['t_limit'][1]:
+        if self.T < fit[self.cool]['t_limit'][0] or\
+           self.T > fit[self.cool]['t_limit'][1]:
             print("Warning T outside of fit range. Consider re-calculating your\
  fit coeffs. to include this temperature!")
         
         # evaluate linear fit
-        [self.k_cool, self.mu, self.rho, self.Cp] = fit['A']*self.T + fit['B']
+        [self.k_cool, self.mu, self.rho, self.Cp] = fit[self.cool]['A']*self.T+\
+                                                    fit[self.cool]['B']
         # calculate Pr number
         self.Pr = self.Cp * self.mu / self.k_cool

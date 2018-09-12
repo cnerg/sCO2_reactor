@@ -1,12 +1,7 @@
 # Other Imports
 import math
-import numpy as np
-import operator
-import sys
-from scipy.optimize import minimize, minimize_scalar
-from scipy.interpolate import interp1d
-# Import physical constants
-from physical_properties import fuel_props, FlowProperties
+from scipy.optimize import minimize_scalar
+from physical_properties import fuel_props
 
 def pipeflow_turbulent(Re, Pr, LD, relrough):
     """Turbulent pipeflow correlation from EES
@@ -187,7 +182,7 @@ class Flow:
 
     iterations = 0
 
-    def __init__(self, cool_r, c, AR, power, fuel, flowprops=FlowProperties()):
+    def __init__(self, cool_r, c, AR, power, fuel, cool, flowprops):
         """Initialize the flow iteration class.
 
         Initialized Attributes:
@@ -199,7 +194,8 @@ class Flow:
         """
         self.Q_therm = power
         self.fuel = fuel
-        self.fuelprops = fuel_props[fuel.split('-')[0]]
+        self.coolant = cool
+        self.fuelprops = fuel_props[fuel]
         self.AR = AR
         self.c = c
         self.r_channel = cool_r
@@ -279,8 +275,6 @@ class Flow:
             q_bar: axially-averaged volumetric generation in fuel [W]
             N_channels: required channels for desired Q [-]
         """
-
-        
 
         self.R_cond = self.radius_cond / (self.fuelprops['k_fuel'] * self.XS_A_cond)
         self.R_conv = 1 / (self.h_bar * self.r_channel * 2 * math.pi * self.L * self.N_channels)
@@ -381,92 +375,15 @@ class Flow:
         """Constrain the core radius based on criticality requirements.
         """
 
-        coeffs = { 'UO2-CO2' : (0.16271, -0.8515),
-                   'UO2-H2O' : (0.1706,  -0.61361),
-                   'UW-CO2'  : (0.15385, -0.8309),
-                   'UW-H2O'  : (0.16270, -0.6487)
+        coeffs = { 'UO2' : {'CO2' : (0.16271, -0.8515),
+                            'H2O' : (0.1706,  -0.61361)
+                           },
+
+                   'UW'  : {'CO2' : (0.15385, -0.8309),
+                            'H2O' : (0.16270, -0.6487)
+                           }
                  }
         
-        self.core_r = coeffs[self.fuel][0] *\
-                      math.pow(self.fuel_frac, coeffs[self.fuel][1])
-
-
-class ParametricSweep():
-    """Class to store results of parametric sweeps for 1D flow channel analysis.
-
-    """
-
-    def __init__(self, N):
-        """Initialie ParametricSweep class.
-
-        Initialized Attributes
-        ----------------------
-            N: (int) N^2 = number of grid points in the radius, PD mesh space.
-            data: (ndarray) structured array containing results of the
-            parametric sweep.
-        """
-        self.N = N
-        # size of formats list
-        N_cats = len(Flow.savedata.keys()) + 2  # add 2 for r,pd
-        self.data = np.zeros(N*N, dtype={'names': list(Flow.savedata.keys()) +
-                                         ['r', 'pd'],
-                                         'formats': ['f8']*N_cats})
-
-    def sweep_geometric_configs(self, radii, pds, z, c, props=None):
-        """Perform parametric sweep through pin cell geometric space. Calculate the
-        minimum required mass for TH purposes at each point.
-        """
-        # calculate appropriate step sizes given range
-        R_step = (radii[1] - radii[0]) / self.N
-        PD_step = (pds[1] - pds[0]) / self.N
-        # ranges for radius and pitch/diameter ratio
-        R_array = np.arange(radii[0], radii[1], R_step)
-        PD_array = np.arange(pds[0], pds[1], PD_step)
-
-        # create parameter mesh
-        R_mesh, PD_mesh = np.meshgrid(R_array, PD_array)
-
-        # sweep through parameter space, calculate min mass
-        for i in range(self.N):
-            for j in range(self.N):
-                flowdata = Flow(R_mesh[i, j], PD_mesh[i, j], c, z, props)
-                oned_flow_modeling(flowdata)
-                self.save_iteration(flowdata, i, j)
-
-        
-    def save_iteration(self, iteration, i, j):
-        """ Save the data from each iteration of the parametric sweep. 
-        """
-        # 2D -> 1D index
-        idx = i + j*self.N
-        # store r, pd
-        self.data[idx]['r'] = iteration.r_channel
-        self.data[idx]['pd'] = iteration.pd_ratio
-        for key in Flow.savedata.keys():
-            self.data[idx][key] = iteration.__dict__[key]
-
-    def get_min_mass(self):
-        """ After the parametric sweep is complete, find the minimum calculated
-        fuel mass.
-        """
-        # search the results for minimum-mass configuration
-        self.min_idx = list(self.data['mass']).index(min(self.data['mass']))
-
-        # get data for min mass config
-        self.min_mass = self.data[self.min_idx]['mass']
-
-        # return the min_idx to get other results at minimum config
-        return self.min_idx
-
-    def disp_min_mass(self):
-        """ Display the minimum mass configuration.
-        """
-        # get the optimal configuration
-        self.minD = self.data[self.min_idx]['r']
-        self.minPD = self.data[self.min_idx]['pd']
-        # report the optimal configuration and it's corresponding fuel mass
-        outstring = "1D Thermal Hydraulics Optimization Results:\n"
-        outstring += "Min reactor mass (m = " + str(round(self.min_mass, 3))\
-            + "[kg]) " + " occurs at r = " + str(self.minD) + "[m] & PD = "\
-            + str(self.minPD) + "[-]."
-        print(outstring)
+        self.core_r = coeffs[self.fuel][self.coolant][0] *\
+                      math.pow(self.fuel_frac, 
+                               coeffs[self.fuel][self.coolant][1])
