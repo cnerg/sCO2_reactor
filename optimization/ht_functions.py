@@ -196,33 +196,10 @@ class Flow:
     ################################
     # UNIT SYSTEM: m, kg, J, W, Pa #
     ################################
-
-    # geometric attributes
-    r_channel = 0
-    c = 0  # clad thickness
-    pitch = 0  # fuel pitch (center to side of hex)
-    L = 0  # reactor length
-    Vol_fuel = 0  # fuel volume
-    mass = 0  # fuel mass
-    A_fuel = 0  # fuel cross-sectional area
-    A_flow = 0  # flow cross-sectional area
-    fuel_frac = 0.75  # number of required fuel channels for given flow conditions
     
+    # set some guess values
+    fuel_frac = 0.75  # number of required fuel channels for given flow conditions
     core_r = 1 # guess core radius
-    # flow parameters
-    D_e = 0  # hydraulic diameter
-    v = 0  # flow velocity
-    dp = 0  # channel pressure drop
-
-    # heat transfer attributes
-    h_bar = 0  # average heat transfer coefficient
-    f = 0  # friction factor
-
-    # heat generation
-    q_bar = 0  # axially-averaged volumetric generation
-    q_per_channel = 0  # generation per fuel channel
-
-    iterations = 0
 
     def __init__(self, cool_r, c, AR, power, fuel, cool, flowprops):
         """Initialize the flow iteration class.
