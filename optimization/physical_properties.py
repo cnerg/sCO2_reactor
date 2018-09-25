@@ -1,10 +1,9 @@
-"""Physical Constants Used for 1D simulation
+"""Physical Constants Used for 1D simulation of sCO2 reactor
 *** All values are bulk flow values averaged axially across the core ***
 """
-import math
 import numpy as np
 
-fuel_props = {'UW' : {
+phys_props = {'UW' : {
                 'T_center'  : 1847.5, # centerline fuel temp (max) [K]
                 'rho_W'     : 19300,  # clad density [kg/m^3]
                 'rho_UN'    : 11300,  # fuel density [kg/m^3]
@@ -15,15 +14,21 @@ fuel_props = {'UW' : {
                 'T_center'  : 1705.65, # centerline fuel temp (max) [K]
                 'rho_fuel'  : 10970,  # clad density [kg/m^3]
                 'k_fuel'    : 3.6      # fuel thermal conductivity [W/m-k]
-                      }
+                      },
+              'Inconel-718' :  {
+                 # assume SS for roughness of Inconel Cladding
+                'rough'     :  1.5e-6
+                      },
+              'Carbon'      :  {
+                'rho'       : 1700
+                               }
              }
 
 # mixed fuel density for Uranium Cermet Fuel
-fuel_props['UW'].update( {'rho_fuel' : fuel_props['UW']['fuel_frac'] * 
-                                       fuel_props['UW']['rho_UN'] +
-                           (1 - fuel_props['UW']['fuel_frac'])*
-                                fuel_props['UW']['rho_W']} )
-
+phys_props['UW'].update( {'rho_fuel' : phys_props['UW']['fuel_frac'] * 
+                                       phys_props['UW']['rho_UN'] +
+                           (1 - phys_props['UW']['fuel_frac'])*
+                                phys_props['UW']['rho_W']} )
 
 class FlowProperties:
     """Class to store flow properties and calculate secondary properties from

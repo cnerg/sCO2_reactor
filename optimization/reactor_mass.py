@@ -3,22 +3,33 @@ from ht_functions import Flow, oned_flow_modeling
 # import physical properties
 import physical_properties as pp
 
-
 def reactor_mass(fuel, coolant, power, m_dot, T, P, 
                  cool_r=0.005, clad_t=0.00031, AR=1):
-    """Produce the mass of a valid reactor design given flow conditions and
-    required thermal power output.
+    """Produce the mass of a valid (coolable and critical) reactor design 
+    given flow conditions and required thermal power output.
+
+    Arguments:
+    ----------
+        fuel (str): fuel type
+        coolant (str): coolant type
+        power (float): thermal power [W]
+        m_dot (float): mass flow rate [kg/s]
+        T ((float, float)): inlet, outlet temp [K]
+        P ((float, float)): inlet, outlet pressure [Pa]
+        cool_r (optional, float): coolant channel radius [m]
+        clad_t (optional, float): clad thickness [m]
+        AR (optional, float): core aspect ratio [-]
+    
+    Returns:
+    --------
+        rxtr.mass (class atribute, float): reactor mass [kg]
     """
 
     # get coolant properties
     flow_props = pp.FlowProperties(coolant, power, m_dot, T, P)
-    print(flow_props.__dict__)
     # initialize reactor model
     rxtr = Flow(cool_r, clad_t, AR, power, fuel, coolant, flow_props)
-    # perform calculation
+    # perform 1D calculation
     oned_flow_modeling(rxtr)
     
     return rxtr.mass
-
-mass = reactor_mass('UW', 'H2O', 200000, 0.2, (1000, 1000), (17.5e6, 17.3e6))
-print(mass)

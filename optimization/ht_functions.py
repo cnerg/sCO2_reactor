@@ -1,10 +1,23 @@
 # Other Imports
 import math
 from scipy.optimize import minimize_scalar
-from physical_properties import fuel_props
+from physical_properties import phys_props
 
 def pipeflow_turbulent(Re, Pr, LD, relrough):
-    """Turbulent pipeflow correlation from EES
+    """Turbulent pipeflow correlation from EES. This function proiveds a nusselt
+    number and friction factor for turbulent flow in a pipe.
+
+    Arguments:
+    ----------
+        Re (float): flow Reynold's number [-]
+        Pr (float): flow Prandtl number [-]
+        LD (float): length over diameter [-]
+        relrough (float) : relative roughness [-]
+    
+    Returns:
+    --------
+        Nusselt_L (float): nusselt number
+        f (float): friction factor
     """
 
     #From Li, Seem, and Li, "IRJ, 
@@ -18,10 +31,10 @@ def pipeflow_turbulent(Re, Pr, LD, relrough):
         #Offor and Alabi, 
         #Advances in Chemical Engineering and Science, 2016, 6, 237-245
         f_fd=(-2*math.log(
-                 relrough/3.71 -
-                 1.975/Re * math.log((relrough/3.93)**1.092 +
-                 7.627/(Re + 395.9)), 10)) ** (-2)
-
+                 (relrough/3.71) -
+                 (1.975/Re) * math.log((relrough/3.93)**1.092 +
+                 (7.627/(Re + 395.9)) , 10))) ** (-2)
+    
     #Gnielinski, V.,, Int. Chem. Eng., 16, 359, 1976
     Nusselt_L= ((f_fd/8)*(Re-1000)*Pr)/(1+12.7*math.sqrt(f_fd/8)*(Pr **(2/3) - 1)) 
     
@@ -35,12 +48,26 @@ def pipeflow_turbulent(Re, Pr, LD, relrough):
 
     #account for developing flow
     f=f_fd*(1+(1/LD)**0.7) 
-    Nusselt_L*(1+(1/LD)**0.7)
+    Nusselt_L*=(1+(1/LD)**0.7)
     
     return Nusselt_L, f
 
 def pipeflow_laminar(Re, Pr, LD, relrough):
-    """laminar pipeflow correlation from EES
+    """Laminar pipeflow correlation from EES. This function provides a nusselt
+    number and friction factor for laminar flow in a pipe.
+
+    Arguments:
+    ----------
+        Re (float): flow Reynold's numbe [-]
+        Pr (float): flow Prandtl number [-]
+        LD (float): length over diameter [-]
+        relrough (float) : relative roughness [-]
+    
+    Returns:
+    --------
+        Nusselt_T (float): nusselt number at constant temperature
+        Nusselt_H (float): nusselt number at constant heat flux
+        f (float): friction factor
     """
 
     Gz = Re* Pr /LD     
@@ -57,7 +84,22 @@ def pipeflow_laminar(Re, Pr, LD, relrough):
     return Nusselt_T, Nusselt_H, f
     
 def pipeflow_nd(Re, Pr, LD, relrough):
-    """Nusselt correlation procedure from EES.
+    """Nusselt correlation procedure from EES. This function provides a nusselt
+    number and friction factor for flow in a pipe. It accounts for laminar,
+    turbulent and transistional flow.
+    
+    Arguments:
+    ----------
+        Re (float): flow Reynold's numbe [-]
+        Pr (float): flow Prandtl number [-]
+        LD (float): length over diameter [-]
+        relrough (float) : relative roughness [-]
+    
+    Returns:
+    --------
+        Nusselt_T (float): nusselt number at constant temperature
+        Nusselt_H (float): nusselt number at constant heat flux
+        f (float): friction factor
     """
     if Re > 3000:
         Nusselt_T, f = pipeflow_turbulent(Re, Pr, LD, relrough)
@@ -195,11 +237,12 @@ class Flow:
         self.Q_therm = power
         self.fuel = fuel
         self.coolant = cool
-        self.fuelprops = fuel_props[fuel]
+        self.fuelprops = phys_props[fuel]
+        self.reflprops = phys_props['Carbon']
+        self.cladprops = phys_props['Inconel-718']
         self.AR = AR
         self.c = c
         self.r_channel = cool_r
-        self.rough = 1.5e-6
         # set up geometry
         self.set_geom()
         self.fps = flowprops
@@ -214,9 +257,9 @@ class Flow:
             A_fuel: fuel area per fuel channel. [m^2]
             D_e: equivalent flow diameter [m]
         """
-        
-        self.A_flow = self.core_r**2 * math.pi * (1 - self.fuel_frac)
-        self.A_fuel = (self.core_r**2 * math.pi) * self.fuel_frac
+        self.A_core = self.core_r**2 * math.pi 
+        self.A_flow = self.A_core * (1 - self.fuel_frac)
+        self.A_fuel = self.A_core * self.fuel_frac
         
         self.L = self.AR * self.core_r
         self.LD = self.L / (self.r_channel*2)
@@ -227,7 +270,8 @@ class Flow:
         self.radius_cond = math.sqrt(self.A_fuel / self.N_channels) / 2
         self.XS_A_cond = math.pi * self.r_channel * self.L * 2 * self.N_channels
         
-        self.relrough = self.rough / (self.r_channel*2)
+        # hydraulic diametre
+        self.D_e = 2.0 * self.r_channel
 
     def characterize_flow(self):
         """Calculate important non-dim and dim flow parameters. These parameters
@@ -242,8 +286,10 @@ class Flow:
             f: friction factor [-]
             h_bar: heat transfer coefficient [W/m^2-K]
         """
-        # hydraulic diametre
-        self.D_e = 2.0 * self.r_channel
+        # roughness of cladding
+        self.rough = self.cladprops['rough']
+        # relative roughness
+        self.relrough = self.rough / (self.r_channel*2)
         # calculate mass flux
         G_dot = self.fps.m_dot / self.A_flow
         # calculate flow velocity from mass flux
@@ -367,7 +413,8 @@ class Flow:
         """
         fuel_mass = self.vol_fuel * self.fuelprops['rho_fuel']
         cool_mass = self.vol_cool * self.fps.rho
-        refl_mass = ((self.core_r * 1.05)**2 - self.core_r**2) * self.L * 1700
+        refl_mass = ((self.core_r * 1.05)**2 - self.core_r**2) *\
+                     self.L * self.reflprops['rho']
         
         self.mass = fuel_mass + cool_mass + refl_mass 
     
