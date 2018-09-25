@@ -183,15 +183,6 @@ class Flow:
     This class contains the required methods to perform a 1D coupled heat
     transfer/fluid flow problem on a CERMET Flow Channel.
     """
-    savedata = {'mass': ("Total Fuel Mass", "m [kg]"),
-                'N_channels': ("Number of Fuel Channels", "N Channels [-]"),
-                'dp': ("Subchannel Pressure Drop", "dP [Pa]"),
-                'h_bar': ("Heat Transfer Coefficient", "h [W / m^2 - K]"),
-                'q_per_channel': ("Total Subchannel Generation", "q/channel [W]"),
-                'q_bar': ("Average Volumetric Generation", "q_bar [W/m^3]"),
-                'v': ("Flow Velocity", "v [m/s]"),
-                'AR': ("Approximate Core Aspect Ratio", "AR [-]")
-               }
 
     ################################
     # UNIT SYSTEM: m, kg, J, W, Pa #
