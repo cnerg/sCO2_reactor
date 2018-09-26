@@ -3,7 +3,7 @@
 """
 import numpy as np
 
-phys_props = {'UW' : {
+fuel_props = {'UW' : {
                 'T_center'  : 1847.5, # centerline fuel temp (max) [K]
                 'rho_W'     : 19300,  # clad density [kg/m^3]
                 'rho_UN'    : 11300,  # fuel density [kg/m^3]
@@ -14,14 +14,18 @@ phys_props = {'UW' : {
                 'T_center'  : 1705.65, # centerline fuel temp (max) [K]
                 'rho_fuel'  : 10970,  # clad density [kg/m^3]
                 'k_fuel'    : 3.6      # fuel thermal conductivity [W/m-k]
-                      },
-              'Inconel-718' :  {
+                      }
+              }
+
+clad_props = {'Inconel-718' :  {
                  # assume SS for roughness of Inconel Cladding
                 'rough'     :  1.5e-6
-                      },
-              'Carbon'      :  {
+                      }
+             }
+
+refl_props = {'Carbon'      :  {
                 'rho'       : 1700
-                               }
+                      }
              }
 
 # mixed fuel density for Uranium Cermet Fuel

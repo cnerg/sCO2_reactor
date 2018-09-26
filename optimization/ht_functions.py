@@ -1,7 +1,8 @@
 # Other Imports
 import math
 from scipy.optimize import minimize_scalar
-from physical_properties import phys_props
+
+import physical_properties as pp
 
 def pipeflow_turbulent(Re, Pr, LD, relrough):
     """Turbulent pipeflow correlation from EES. This function proiveds a nusselt
@@ -192,7 +193,7 @@ class Flow:
     fuel_frac = 0.75  # number of required fuel channels for given flow conditions
     core_r = 1 # guess core radius
 
-    def __init__(self, cool_r, c, AR, power, fuel, cool, flowprops):
+    def __init__(self, cool_r, c, AR, power, fuel, cool, clad, refl, flowprops):
         """Initialize the flow iteration class.
 
         Initialized Attributes:
@@ -205,9 +206,9 @@ class Flow:
         self.Q_therm = power
         self.fuel = fuel
         self.coolant = cool
-        self.fuelprops = phys_props[fuel]
-        self.reflprops = phys_props['Carbon']
-        self.cladprops = phys_props['Inconel-718']
+        self.fuelprops = pp.fuel_props[fuel]
+        self.reflprops = pp.refl_props[refl]
+        self.cladprops = pp.clad_props[clad]
         self.AR = AR
         self.c = c
         self.r_channel = cool_r
