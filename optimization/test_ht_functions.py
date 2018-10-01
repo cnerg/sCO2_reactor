@@ -90,7 +90,7 @@ def test_q():
     test.characterize_flow()
     
     # expected value
-    exp_q_gen = 8432.851535
+    exp_q_gen = 3642.73036
     test.get_q_per_channel()
     
     # compare
