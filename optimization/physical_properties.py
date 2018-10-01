@@ -29,10 +29,10 @@ refl_props = {'Carbon'      :  {
              }
 
 # mixed fuel density for Uranium Cermet Fuel
-phys_props['UW'].update( {'rho_fuel' : phys_props['UW']['fuel_frac'] * 
-                                       phys_props['UW']['rho_UN'] +
-                           (1 - phys_props['UW']['fuel_frac'])*
-                                phys_props['UW']['rho_W']} )
+fuel_props['UW'].update( {'rho_fuel' : fuel_props['UW']['fuel_frac'] * 
+                                       fuel_props['UW']['rho_UN'] +
+                           (1 - fuel_props['UW']['fuel_frac'])*
+                                fuel_props['UW']['rho_W']} )
 
 class FlowProperties:
     """Class to store flow properties and calculate secondary properties from
