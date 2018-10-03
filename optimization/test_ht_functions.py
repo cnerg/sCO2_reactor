@@ -22,7 +22,7 @@ clad = 'Inconel-718'
 refl = 'Carbon'
 
 # get secondary flow properties
-flow_props = pp.FlowProperties(coolant, power, m_dot, T, P)
+flow_props = pp.FlowProperties(coolant, m_dot, T, P)
 
 def test_set_geom():
     """Test geometry initialization. This tests the Flow method that calculates
@@ -62,11 +62,11 @@ def test_characterize_flow():
     relrough = test.cladprops['rough'] / (2*radius)
     
     # correlation take from EES
-    exp_f = 0.003030597
-    exp_Nu = 126.0544263 
-    exp_h = 1096.8527578
+    exp_f = 0.0030307
+    exp_Nu = 126.0792816 
+    exp_h = 1097.2207083
     
-    print(test.D_e)
+
     # calculated values
     test.characterize_flow()
     # compare
