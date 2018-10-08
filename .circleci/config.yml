@@ -11,6 +11,7 @@ jobs:
                  command: |
                      export APP_ENV
                      APP_ENV=docker
+                     cd optimization
                      pytest
 workflows:  
     version: 2
