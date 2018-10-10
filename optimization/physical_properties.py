@@ -11,18 +11,21 @@ fuel_props = {'UW' : {
                 'rho_W'     : 19300,  # clad density [kg/m^3]
                 'rho_UN'    : 11300,  # fuel density [kg/m^3]
                 'fuel_frac' : 0.6,    # volume fraction of fuel in CERMET
-                'k_fuel'    : 51
+                'k'         : 51
                      },
               'UO2' : {
                 'T_center'  : 1705.65, # centerline fuel temp (max) [K]
                 'rho_fuel'  : 10970,  # clad density [kg/m^3]
-                'k_fuel'    : 3.6      # fuel thermal conductivity [W/m-k]
+                'k'         : 3.6      # fuel thermal conductivity [W/m-k]
                       }
               }
 
 clad_props = {'Inconel-718' :  {
                  # assume SS for roughness of Inconel Cladding
-                'rough'     :  1.5e-6
+                'rough'     : 1.5e-6,
+                # from ESPI Metals Website
+                'k'         : 11.4,
+                'rho'       : 8.19
                       }
              }
 

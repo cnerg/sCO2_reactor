@@ -239,13 +239,18 @@ class Flow:
             D_e: equivalent flow diameter [m]
         """
         self.A_core = self.core_r**2 * math.pi 
-        self.A_flow = self.A_core * (1 - self.fuel_frac)
+        self.clad_frac = ((self.c + self.r_channel)**2 -
+                           self.r_channel**2)/self.r_channel**2
+
+        self.A_flow = self.A_core * (1 - self.fuel_frac) * (1-self.clad_frac)
+        self.A_clad = self.A_core * (1-self.fuel_frac) * (self.clad_frac)
         self.A_fuel = self.A_core * self.fuel_frac
         
         self.L = self.AR * self.core_r
         self.LD = self.L / (self.r_channel*2)
         self.vol_fuel = self.A_fuel * self.L
         self.vol_cool = self.A_flow * self.L
+        self.vol_clad = self.A_clad * self.L
 
         self.N_channels = self.A_flow / (self.r_channel**2 * math.pi)
         
@@ -305,15 +310,20 @@ class Flow:
         
         self.radius_cond = math.sqrt(self.A_fuel / self.N_channels) / 2
         self.XS_A_cond = math.pi * self.r_channel * self.L * 2 * self.N_channels
-
-        self.R_cond = self.radius_cond / (self.fuelprops['k_fuel'] * self.XS_A_cond)
-        self.R_conv = 1 / (self.h_bar * self.r_channel * 2 * math.pi * self.L * self.N_channels)
+        
+        
+        self.R_cond_fuel = self.radius_cond / (self.fuelprops['k'] * self.XS_A_cond)
+        self.R_cond_clad = math.log(1 + self.c/self.r_channel)\
+                        /(2*math.pi*self.cladprops['k']*self.L*self.N_channels)
+        self.R_conv = 1 / (self.h_bar * self.r_channel *\
+                           2 * math.pi * self.L * self.N_channels)
         
         # calculate centerline volumetric generation
-        q_trip_max = self.dT / (self.R_cond + self.R_conv)
+        q_trip_max = self.dT / (self.R_cond_fuel + self.R_cond_clad + self.R_conv)
 
         # consider axial/radial flux variation (El-Wakil 4-30a)
         self.gen_Q = q_trip_max * 0.275
+        
 
     def calc_dp(self):
         """Calculate axial pressure drop across the reactor core.
@@ -395,10 +405,11 @@ class Flow:
         """
         fuel_mass = self.vol_fuel * self.fuelprops['rho_fuel']
         cool_mass = self.vol_cool * self.fps.rho
+        clad_mass = self.vol_cool * self.cladprops['rho']
         refl_mass = ((self.core_r * 1.05)**2 - self.core_r**2) *\
                      self.L * self.reflprops['rho']
         
-        self.mass = fuel_mass + cool_mass + refl_mass 
+        self.mass = fuel_mass + cool_mass + refl_mass + clad_mass
     
     def constrain_radius(self):
         """Constrain the core radius based on criticality requirements.

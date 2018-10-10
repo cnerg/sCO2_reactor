@@ -42,6 +42,3 @@ def reactor_mass(fuel, coolant, power, m_dot, T, P,
 test_mass = reactor_mass('UW', 'CO2', 90000, 1, (900,1100), (1.79e7, 1.73e7))
 print(test_mass)
 
-flow_props.update_props(1, (1099, 1100), (1.79e7, 1.73e7))
-test_mass = reactor_mass('UW', 'CO2', 90000, 1, (900,1100), (1.79e7, 1.73e7))
-print(test_mass)
