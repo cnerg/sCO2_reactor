@@ -1,10 +1,23 @@
-# Other Imports
 import math
 from scipy.optimize import minimize_scalar
-from physical_properties import fuel_props
+# import physical properties
+import physical_properties as pp
 
 def pipeflow_turbulent(Re, Pr, LD, relrough):
-    """Turbulent pipeflow correlation from EES
+    """Turbulent pipeflow correlation from EES. This function proiveds a nusselt
+    number and friction factor for turbulent flow in a pipe.
+
+    Arguments:
+    ----------
+        Re (float): flow Reynold's number [-]
+        Pr (float): flow Prandtl number [-]
+        LD (float): length over diameter [-]
+        relrough (float) : relative roughness [-]
+    
+    Returns:
+    --------
+        Nusselt_L (float): nusselt number
+        f (float): friction factor
     """
 
     #From Li, Seem, and Li, "IRJ, 
@@ -18,10 +31,10 @@ def pipeflow_turbulent(Re, Pr, LD, relrough):
         #Offor and Alabi, 
         #Advances in Chemical Engineering and Science, 2016, 6, 237-245
         f_fd=(-2*math.log(
-                 relrough/3.71 -
-                 1.975/Re * math.log((relrough/3.93)**1.092 +
-                 7.627/(Re + 395.9)), 10)) ** (-2)
-
+                 (relrough/3.71) -
+                 (1.975/Re) * math.log((relrough/3.93)**1.092 +
+                 (7.627/(Re + 395.9)) , 10))) ** (-2)
+    
     #Gnielinski, V.,, Int. Chem. Eng., 16, 359, 1976
     Nusselt_L= ((f_fd/8)*(Re-1000)*Pr)/(1+12.7*math.sqrt(f_fd/8)*(Pr **(2/3) - 1)) 
     
@@ -35,12 +48,26 @@ def pipeflow_turbulent(Re, Pr, LD, relrough):
 
     #account for developing flow
     f=f_fd*(1+(1/LD)**0.7) 
-    Nusselt_L*(1+(1/LD)**0.7)
+    Nusselt_L*=(1+(1/LD)**0.7)
     
     return Nusselt_L, f
 
 def pipeflow_laminar(Re, Pr, LD, relrough):
-    """laminar pipeflow correlation from EES
+    """Laminar pipeflow correlation from EES. This function provides a nusselt
+    number and friction factor for laminar flow in a pipe.
+
+    Arguments:
+    ----------
+        Re (float): flow Reynold's numbe [-]
+        Pr (float): flow Prandtl number [-]
+        LD (float): length over diameter [-]
+        relrough (float) : relative roughness [-]
+    
+    Returns:
+    --------
+        Nusselt_T (float): nusselt number at constant temperature
+        Nusselt_H (float): nusselt number at constant heat flux
+        f (float): friction factor
     """
 
     Gz = Re* Pr /LD     
@@ -57,7 +84,22 @@ def pipeflow_laminar(Re, Pr, LD, relrough):
     return Nusselt_T, Nusselt_H, f
     
 def pipeflow_nd(Re, Pr, LD, relrough):
-    """Nusselt correlation procedure from EES.
+    """Nusselt correlation procedure from EES. This function provides a nusselt
+    number and friction factor for flow in a pipe. It accounts for laminar,
+    turbulent and transistional flow.
+    
+    Arguments:
+    ----------
+        Re (float): flow Reynold's numbe [-]
+        Pr (float): flow Prandtl number [-]
+        LD (float): length over diameter [-]
+        relrough (float) : relative roughness [-]
+    
+    Returns:
+    --------
+        Nusselt_T (float): nusselt number at constant temperature
+        Nusselt_H (float): nusselt number at constant heat flux
+        f (float): friction factor
     """
     if Re > 3000:
         Nusselt_T, f = pipeflow_turbulent(Re, Pr, LD, relrough)
@@ -134,75 +176,51 @@ def find_n_channels(flow):
     res = minimize_scalar(_calc_n_channels_error, bounds=(0.01, 1), args=(flow),
                           method='Bounded', options={'xatol': 1e-3})
 
-
 class Flow:
     """ Perform 1D Flow Analysis
 
     This class contains the required methods to perform a 1D coupled heat
     transfer/fluid flow problem on a CERMET Flow Channel.
     """
-    savedata = {'mass': ("Total Fuel Mass", "m [kg]"),
-                'N_channels': ("Number of Fuel Channels", "N Channels [-]"),
-                'dp': ("Subchannel Pressure Drop", "dP [Pa]"),
-                'h_bar': ("Heat Transfer Coefficient", "h [W / m^2 - K]"),
-                'q_per_channel': ("Total Subchannel Generation", "q/channel [W]"),
-                'q_bar': ("Average Volumetric Generation", "q_bar [W/m^3]"),
-                'v': ("Flow Velocity", "v [m/s]"),
-                'AR': ("Approximate Core Aspect Ratio", "AR [-]")
-               }
 
     ################################
     # UNIT SYSTEM: m, kg, J, W, Pa #
     ################################
-
-    # geometric attributes
-    r_channel = 0
-    c = 0  # clad thickness
-    pitch = 0  # fuel pitch (center to side of hex)
-    L = 0  # reactor length
-    Vol_fuel = 0  # fuel volume
-    mass = 0  # fuel mass
-    A_fuel = 0  # fuel cross-sectional area
-    A_flow = 0  # flow cross-sectional area
-    fuel_frac = 0.75  # number of required fuel channels for given flow conditions
     
+    # set some guess values
+    fuel_frac = 0.75  # number of required fuel channels for given flow conditions
     core_r = 1 # guess core radius
-    # flow parameters
-    D_e = 0  # hydraulic diameter
-    v = 0  # flow velocity
-    dp = 0  # channel pressure drop
 
-    # heat transfer attributes
-    h_bar = 0  # average heat transfer coefficient
-    f = 0  # friction factor
-
-    # heat generation
-    q_bar = 0  # axially-averaged volumetric generation
-    q_per_channel = 0  # generation per fuel channel
-
-    iterations = 0
-
-    def __init__(self, cool_r, c, AR, power, fuel, cool, flowprops):
+    def __init__(self, cool_r, c, AR, power, fuel, cool, clad, refl, flowprops):
         """Initialize the flow iteration class.
 
         Initialized Attributes:
         --------------------
-            r_channel: radius of coolant channel [m]
-            c: cladding thickness [m]
+            Q_therm (float): core thermal power [W]
+            fuel (str): reactor fuel
+            coolant (str): reactor coolant
+            AR (float): core aspect ratio [-]
+            c (float): clad thickness
+            r_channel (float): coolant channel radius
             pitch: fuel thickness (minor axis of hexagon) [m]
             L: length of core [m]
         """
+        # load core parameters
         self.Q_therm = power
         self.fuel = fuel
         self.coolant = cool
-        self.fuelprops = fuel_props[fuel]
         self.AR = AR
         self.c = c
         self.r_channel = cool_r
-        self.rough = 1.5e-6
+
+        # load material properties
+        self.fuelprops = pp.fuel_props[fuel]
+        self.reflprops = pp.refl_props[refl]
+        self.cladprops = pp.clad_props[clad]
+        self.fps = flowprops
+        
         # set up geometry
         self.set_geom()
-        self.fps = flowprops
         self.dT = self.fuelprops['T_center'] - self.fps.T  # temp. drop fuel -> coolant
 
     def set_geom(self):
@@ -212,22 +230,32 @@ class Flow:
         --------------------
             A_flow: flow area per fuel channel. [m^2]
             A_fuel: fuel area per fuel channel. [m^2]
+            A_core: area of the core. [m^2]
+            L: length of the core [m]
+            LD: length over diameter for a coolant channel [-]
+            vol_fuel: fuel volume [m^3]
+            vol_cool: cool volume [m^3]
+            N_channels: number of coolant channels [-]
             D_e: equivalent flow diameter [m]
         """
-        
-        self.A_flow = self.core_r**2 * math.pi * (1 - self.fuel_frac)
-        self.A_fuel = (self.core_r**2 * math.pi) * self.fuel_frac
+        self.A_core = self.core_r**2 * math.pi 
+        self.clad_frac = ((self.c + self.r_channel)**2 -
+                           self.r_channel**2)/self.r_channel**2
+
+        self.A_flow = self.A_core * (1 - self.fuel_frac) * (1-self.clad_frac)
+        self.A_clad = self.A_core * (1-self.fuel_frac) * (self.clad_frac)
+        self.A_fuel = self.A_core * self.fuel_frac
         
         self.L = self.AR * self.core_r
         self.LD = self.L / (self.r_channel*2)
         self.vol_fuel = self.A_fuel * self.L
         self.vol_cool = self.A_flow * self.L
+        self.vol_clad = self.A_clad * self.L
 
         self.N_channels = self.A_flow / (self.r_channel**2 * math.pi)
-        self.radius_cond = math.sqrt(self.A_fuel / self.N_channels) / 2
-        self.XS_A_cond = math.pi * self.r_channel * self.L * 2 * self.N_channels
         
-        self.relrough = self.rough / (self.r_channel*2)
+        # hydraulic diametre
+        self.D_e = 2.0 * self.r_channel
 
     def characterize_flow(self):
         """Calculate important non-dim and dim flow parameters. These parameters
@@ -238,12 +266,18 @@ class Flow:
 
         Modified Attributes:
         --------------------
-            v: flow velocity [m/s]
-            f: friction factor [-]
-            h_bar: heat transfer coefficient [W/m^2-K]
+            relrough (float): relative roughness [-]
+            G_dot (float): mass flux [kg/m^2-s]
+            v (float): flow velocity [m/s]
+            Re (float): reynold's number [-]
+            Nu (float): nusselt number [-]
+            f (float): friction factor [-]
+            h_bar (float): heat transfer coefficient [W/m^2-K]
         """
-        # hydraulic diametre
-        self.D_e = 2.0 * self.r_channel
+        # roughness of cladding
+        self.rough = self.cladprops['rough']
+        # relative roughness
+        self.relrough = self.rough / (self.r_channel*2)
         # calculate mass flux
         G_dot = self.fps.m_dot / self.A_flow
         # calculate flow velocity from mass flux
@@ -267,31 +301,36 @@ class Flow:
 
         Modified Attributes:
         --------------------
-            R_fuel: resistance term (conduction in the fuel) [W/K]
-            R_clad: resistance term (conduction in the clad) [W/K]
-            R_conv: resistance term (convection to the fluid) [W/K]
-            R_tot: total resistance to HT [W/K]
-            q_per_channel: total generation in fuel channel [W]
-            q_bar: axially-averaged volumetric generation in fuel [W]
-            N_channels: required channels for desired Q [-]
+            radius_cond (float): average distance of conduction in fuel [m]
+            R_fuel: (float): resistance term (conduction in the fuel) [W/K]
+            R_conv: (float): resistance term (convection to the coolant) [W/K]
+            q_trip_max (float): maximum achievable thermal power [W]
+            gen_Q (float): thermal power scaled for flux shape
         """
-
-        self.R_cond = self.radius_cond / (self.fuelprops['k_fuel'] * self.XS_A_cond)
-        self.R_conv = 1 / (self.h_bar * self.r_channel * 2 * math.pi * self.L * self.N_channels)
+        
+        self.radius_cond = math.sqrt(self.A_fuel / self.N_channels) / 2
+        self.XS_A_cond = math.pi * self.r_channel * self.L * 2 * self.N_channels
+        
+        
+        self.R_cond_fuel = self.radius_cond / (self.fuelprops['k'] * self.XS_A_cond)
+        self.R_cond_clad = math.log(1 + self.c/self.r_channel)\
+                        /(2*math.pi*self.cladprops['k']*self.L*self.N_channels)
+        self.R_conv = 1 / (self.h_bar * self.r_channel *\
+                           2 * math.pi * self.L * self.N_channels)
         
         # calculate centerline volumetric generation
-        q_trip_max = self.dT / (self.R_cond + self.R_conv)
+        q_trip_max = self.dT / (self.R_cond_fuel + self.R_cond_clad + self.R_conv)
 
-        # consider axial flux variation
-        self.gen_Q = q_trip_max * 2 / math.pi
-
+        # consider axial/radial flux variation (El-Wakil 4-30a)
+        self.gen_Q = q_trip_max * 0.275
+        
 
     def calc_dp(self):
         """Calculate axial pressure drop across the reactor core.
 
         Modified Attributes:
         --------------------
-            dp: core pressure drop [Pa]
+            dp (float): core pressure drop [Pa]
         """
         # Darcy pressure drop (El-Wakil 9-3)
         self.dp = self.f * self.L * self.fps.rho * \
@@ -306,8 +345,7 @@ class Flow:
 
         Modified Attributes:
         --------------------
-            guess_channels: guess number of fuel channels [-]
-            N_channels: number of fuel channels [-]
+            N_channels (int): number of fuel channels [-]
         """
 
         self.calc_dp()
@@ -327,7 +365,7 @@ class Flow:
             self: Flow object [-]
         Returns:
         --------
-            req_channels: Min N_channels required to meet dp constraint [-].
+            req_channels (int): Min N_channels required to meet dp constraint [-].
         """
         v_req = math.sqrt(2*self.D_e * self.fps.dp_limit /
                           (self.f * self.L * self.fps.rho))
@@ -342,11 +380,11 @@ class Flow:
 
             Arguments:
             ----------
-                inp_guess: (int) guess value for number of fuel channels
+                inp_guess: (float) guess value for fuel fraction
             Returns:
             --------
-                error: (float) squared error between guess value for N_channels
-                and the calculate N_channels
+                error: (float) squared error between the possible power
+                generation and the required power generation
         """
 
         self.fuel_frac = inp_guess
@@ -367,12 +405,18 @@ class Flow:
         """
         fuel_mass = self.vol_fuel * self.fuelprops['rho_fuel']
         cool_mass = self.vol_cool * self.fps.rho
-        refl_mass = ((self.core_r * 1.05)**2 - self.core_r**2) * self.L * 1700
+        clad_mass = self.vol_cool * self.cladprops['rho']
+        refl_mass = ((self.core_r * 1.05)**2 - self.core_r**2) *\
+                     self.L * self.reflprops['rho']
         
-        self.mass = fuel_mass + cool_mass + refl_mass 
+        self.mass = fuel_mass + cool_mass + refl_mass + clad_mass
     
     def constrain_radius(self):
         """Constrain the core radius based on criticality requirements.
+
+        Modified Attributes:
+        --------------------
+            core_r (float): critical core radius based on fuel fraction [m]
         """
 
         coeffs = { 'UO2' : {'CO2' : (0.16271, -0.8515),
