@@ -3,8 +3,6 @@ from ht_functions import Flow, oned_flow_modeling
 # import physical properties
 import physical_properties as pp
 
-# get coolant properties
-flow_props = pp.FlowProperties('CO2', 1, (900,1100), (1.79e7, 1.76e7))
 
 def reactor_mass(fuel, coolant, power, m_dot, T, P,
                  clad='Inconel-718', refl='Carbon',
@@ -30,7 +28,8 @@ def reactor_mass(fuel, coolant, power, m_dot, T, P,
     --------
         rxtr.mass (class atribute, float): reactor mass [kg]
     """
-
+    # get coolant properties
+    flow_props = pp.FlowProperties(coolant, m_dot, (T[0],T[1]), (P[0], P[1]))
     # initialize reactor model
     rxtr = Flow(cool_r, clad_t, AR, power, fuel, coolant, clad, refl, flow_props)
     # perform 1D calculation
@@ -39,6 +38,6 @@ def reactor_mass(fuel, coolant, power, m_dot, T, P,
     return rxtr.mass
 
 
-test_mass = reactor_mass('UW', 'CO2', 90000, 1, (900,1100), (1.79e7, 1.73e7))
+test_mass = reactor_mass('UO2', 'CO2', 90000, 1, (900,1100), (1.79e7, 1.73e7))
 print(test_mass)
 
