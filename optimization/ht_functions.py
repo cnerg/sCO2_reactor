@@ -174,7 +174,7 @@ def find_n_channels(flow):
 
     """
     res = minimize_scalar(_calc_n_channels_error, bounds=(0.01, 1), args=(flow),
-                          method='Bounded', options={'xatol': 1e-3})
+                          method='Bounded', options={'xatol': 1e-10})
 
 class Flow:
     """ Perform 1D Flow Analysis
@@ -419,12 +419,12 @@ class Flow:
             core_r (float): critical core radius based on fuel fraction [m]
         """
 
-        coeffs = { 'UO2' : {'CO2' : (0.15423, -0.2119),
-                            'H2O' : (0.14673, -0.3509)
+        coeffs = { 'UO2' : {'CO2' : (0.1322,  -0.59634),
+                            'H2O' : (0.1367,  -0.45801)
                            },
 
-                   'UW'  : {'CO2' : (0.19301, -0.3297),
-                            'H2O' : (0.20312, -0.2119)
+                   'UW'  : {'CO2' : (0.1687,  -0.57327),
+                            'H2O' : (0.1681,  -0.51622)
                            }
                  }
         

@@ -34,10 +34,23 @@ def reactor_mass(fuel, coolant, power, m_dot, T, P,
     rxtr = Flow(cool_r, clad_t, AR, power, fuel, coolant, clad, refl, flow_props)
     # perform 1D calculation
     oned_flow_modeling(rxtr)
-    
+    print(rxtr.gen_Q)
+
     return rxtr.mass
 
+Q_therm = 200000
+m_dot = 1
 
-test_mass = reactor_mass('UO2', 'CO2', 90000, 1, (900,1100), (1.79e7, 1.73e7))
+print('UO2 CO2')
+test_mass = reactor_mass('UO2', 'CO2', Q_therm, m_dot, (900,1100), (1.79e7, 1.73e7))
+print(test_mass)
+print('UO2 H2O')
+test_mass = reactor_mass('UO2', 'H2O', Q_therm, m_dot, (900,1100), (1.79e7, 1.73e7))
+print(test_mass)
+print('UW CO2')
+test_mass = reactor_mass('UW', 'CO2', Q_therm, m_dot, (900,1100), (1.79e7, 1.73e7))
+print(test_mass)
+print('UW H2O')
+test_mass = reactor_mass('UW', 'H2O', Q_therm, m_dot, (900,1100), (1.79e7, 1.73e7))
 print(test_mass)
 
