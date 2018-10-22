@@ -403,10 +403,15 @@ class Flow:
             Vol_fuel: total fuel volume [m^3]
             mass: total fuel mass[kg]
         """
+        opt_refl_mult = {'UW'  : {'CO2' : 0.344, 'H2O' : 0.296},
+                         'UO2' : {'CO2' : 0.165, 'H2O' : 0.158}
+                        }
+
         fuel_mass = self.vol_fuel * self.fuelprops['rho_fuel']
         cool_mass = self.vol_cool * self.fps.rho
         clad_mass = self.vol_cool * self.cladprops['rho']
-        refl_mass = ((self.core_r * 1.05)**2 - self.core_r**2) *\
+        refl_mult = opt_refl_mult[self.fuel][self.coolant]
+        refl_mass = ((self.core_r * refl_mult)**2 - self.core_r**2) *\
                      self.L * self.reflprops['rho']
         
         self.mass = fuel_mass + cool_mass + refl_mass + clad_mass
@@ -419,12 +424,21 @@ class Flow:
             core_r (float): critical core radius based on fuel fraction [m]
         """
 
-        coeffs = { 'UO2' : {'CO2' : (0.1322,  -0.59634),
-                            'H2O' : (0.1367,  -0.45801)
+#       coeffs = { 'UO2' : {'CO2' : (0.1322,  -0.59634),
+#                           'H2O' : (0.1367,  -0.45801)
+#                          },
+
+#                  'UW'  : {'CO2' : (0.1687,  -0.57327),
+#                           'H2O' : (0.1681,  -0.51622)
+#                          }
+#                }
+        
+        coeffs = { 'UO2' : {'CO2' : (0.1631,  -0.64517),
+                            'H2O' : (0.1692,  -0.49551)
                            },
 
-                   'UW'  : {'CO2' : (0.1687,  -0.57327),
-                            'H2O' : (0.1681,  -0.51622)
+                   'UW'  : {'CO2' : (0.1968,  -0.58142),
+                            'H2O' : (0.2024,  -0.49903)
                            }
                  }
         
