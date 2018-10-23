@@ -17,8 +17,21 @@ import pandas
 # import Flow class
 from reactor_mass import reactor_mass
 
-savevals = ['gen_Q', 'mass', 'Re', 'h_bar', 'fuel_frac', 'Nu', 'core_r',
-        'A_flow', 'N_channels']
+labels = {'mass' : 'Reactor Mass [kg]',
+          'Re' : 'Reynolds Number [-]',
+          'h_bar' : 'Heat Transfer Coefficient [W/m^2-K]',
+          'fuel_frac' : 'Core Fuel Fraction [-]',
+          'Nu' : 'Nusselt Number [-]',
+          'core_r' : 'Core Radius [m]',
+          'A_flow' : 'Coolant Flow Area [m]',
+          'gen_Q'  : 'Core Thermal Power [W]',
+          'LD'     : 'L over D [-]',
+          'radius_cond' : 'Av. Distance to Conduction [m]',
+          'R_cond_fuel' : 'Resistance to Conduction in Fuel [K/W]',
+          'R_conv' : 'Resistance to Convection [K/W]',
+          'R_tot'  : 'Total Resistance to Heat Transfer [K/W]',
+          'R_cond_clad' : 'Resistance to Conduction in Clad [K/W]'
+         }
 critical_mass = {'UO2-CO2' : 51.07,
                  'UO2-H2O' : 51.07,
                  'UW-CO2'  : 167.2,
@@ -42,11 +55,11 @@ def power_dependence(fuel, coolant):
     y = []
 
     powers = np.arange(90000, 200000, 4583)
-    data = np.zeros(len(powers), dtype={'names' : savevals,
-                                        'formats' : ['f8']*len(savevals)})
+    data = np.zeros(len(powers), dtype={'names' : list(labels.keys()),
+                                        'formats' : ['f8']*len(labels)})
     for idx, Q in enumerate(powers):
         rxtr = reactor_mass(fuel, coolant, Q, m_dot, T, P[coolant])
-        for key in savevals:
+        for key in labels.keys():
             data[idx][key] = rxtr.__dict__[key]
 
     return data
@@ -55,15 +68,6 @@ def plot_results(results, ind, dep):
     """Plot mass results as function of power
     """
 
-    labels = {'mass' : 'Reactor Mass [kg]',
-              'Re' : 'Reynolds Number [-]',
-              'h_bar' : 'Heat Transfer Coefficient [W/m^2-K]',
-              'fuel_frac' : 'Core Fuel Fraction [-]',
-              'Nu' : 'Nusselt Number [-]',
-              'core_r' : 'Core Radius [m]',
-              'A_flow' : 'Coolant Flow Area [m]',
-              'gen_Q'  : 'Core Thermal Power [W]'
-             }
 
     line_formats = {'UO2-CO2' : 'r--',
                     'UO2-H2O' : 'r-',
@@ -92,7 +96,9 @@ def stacked_area_plot(results):
         crit_mass = [critical_mass[rxtr]]*len(results[rxtr])
         fig, ax = plt.subplots()
 
-        ax.stackplot(res['gen_Q'], crit_mass, res['mass'], labels=['critical mass', 'coolable mass'])
+        ax.stackplot(res['gen_Q'], res['R_conv'], res['R_cond_fuel'],
+                     res['R_cond_clad'],
+                     labels=['Convection', 'Conduction Fuel', 'Conduction Clad'])
         box = ax.get_position()
         ax.set_position([box.x0, box.y0 + box.height * 0.1,
                          box.width, box.height * 0.9])
@@ -100,7 +106,7 @@ def stacked_area_plot(results):
         plt.xlabel('Thermal Power [W]')
         plt.ylabel('Mass [kg]')
         # Put a legend below current axis
-        plt.legend(loc='upper left')
+        plt.legend(loc='upper right')
         plt.savefig('{0}_stacked_area.png'.format(rxtr)) 
 
 def gen_data():
@@ -115,7 +121,7 @@ def gen_data():
         
         results[config] = power_dependence(fuel, cool)
         np.savetxt(config + '.csv', results[config], delimiter=',',
-                   fmt='%10.5f', header=','.join(savevals))
+                   fmt='%10.5f', header=','.join(list(labels.keys())))
 
     return results
 
@@ -131,7 +137,13 @@ plot_results(data, 'gen_Q', 'mass')
 plot_results(data, 'gen_Q', 'Re')
 plot_results(data, 'gen_Q', 'fuel_frac')
 plot_results(data, 'gen_Q', 'core_r')
-plot_results(data, 'gen_Q', 'A_flow')
+#plot_results(data, 'gen_Q', 'A_flow')
 plot_results(data, 'gen_Q', 'h_bar')
-plot_results(data, 'Re', 'Nu')
-#stacked_area_plot(data)
+#plot_results(data, 'gen_Q', 'LD')
+#plot_results(data, 'gen_Q', 'R_cond_fuel')
+#plot_results(data, 'gen_Q', 'radius_cond')
+#plot_results(data, 'gen_Q', 'R_conv')
+#plot_results(data, 'gen_Q', 'R_tot')
+#plot_results(data, 'gen_Q', 'R_cond_clad')
+#plot_results(data, 'Re', 'Nu')
+stacked_area_plot(data)

@@ -33,7 +33,7 @@ def pipeflow_turbulent(Re, Pr, LD, relrough):
         f_fd=(-2*math.log(
                  (relrough/3.71) -
                  (1.975/Re) * math.log((relrough/3.93)**1.092 +
-                 (7.627/(Re + 395.9)) , 10))) ** (-2)
+                 (7.627/(Re + 395.9)), 10), 10)) ** (-2)
     
     #Gnielinski, V.,, Int. Chem. Eng., 16, 359, 1976
     Nusselt_L= ((f_fd/8)*(Re-1000)*Pr)/(1+12.7*math.sqrt(f_fd/8)*(Pr **(2/3) - 1)) 
@@ -173,8 +173,8 @@ def find_n_channels(flow):
         none
 
     """
-    res = minimize_scalar(_calc_n_channels_error, bounds=(0.01, 1), args=(flow),
-                          method='Bounded', options={'xatol': 1e-10})
+    res = minimize_scalar(_calc_n_channels_error, bounds=(0.1, 1), args=(flow),
+                          method='Bounded', options={'xatol': 1e-5})
 
 class Flow:
     """ Perform 1D Flow Analysis
@@ -317,9 +317,9 @@ class Flow:
                         /(2*math.pi*self.cladprops['k']*self.L*self.N_channels)
         self.R_conv = 1 / (self.h_bar * self.r_channel *\
                            2 * math.pi * self.L * self.N_channels)
-        
+        self.R_tot = self.R_cond_fuel + self.R_cond_clad + self.R_conv 
         # calculate centerline volumetric generation
-        q_trip_max = self.dT / (self.R_cond_fuel + self.R_cond_clad + self.R_conv)
+        q_trip_max = self.dT / (self.R_tot)
 
         # consider axial/radial flux variation (El-Wakil 4-30a)
         self.gen_Q = q_trip_max * 0.275
