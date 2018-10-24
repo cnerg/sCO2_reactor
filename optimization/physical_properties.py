@@ -25,7 +25,7 @@ clad_props = {'Inconel-718' :  {
                 'rough'     : 1.5e-6,
                 # from ESPI Metals Website
                 'k'         : 11.4,
-                'rho'       : 8.19
+                'rho'       : 8190
                       }
              }
 
@@ -33,6 +33,12 @@ refl_props = {'Carbon'      :  {
                 'rho'       : 1700
                       }
              }
+pv_props   = {'SS304'       :  {
+                # tensile strength (Pa) @ 800F  (SS information center)
+                'strength' : 509e6,
+                'rho'      : 8000   # density kg/m^3
+                      }
+    }
 
 # mixed fuel density for Uranium Cermet Fuel
 fuel_props['UW'].update( {'rho_fuel' : fuel_props['UW']['fuel_frac'] * 

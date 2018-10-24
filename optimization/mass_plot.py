@@ -30,7 +30,12 @@ labels = {'mass' : 'Reactor Mass [kg]',
           'R_cond_fuel' : 'Resistance to Conduction in Fuel [K/W]',
           'R_conv' : 'Resistance to Convection [K/W]',
           'R_tot'  : 'Total Resistance to Heat Transfer [K/W]',
-          'R_cond_clad' : 'Resistance to Conduction in Clad [K/W]'
+          'R_cond_clad' : 'Resistance to Conduction in Clad [K/W]',
+          'fuel_mass' : 'Fuel Mass [kg]',
+          'cool_mass' : 'Coolant Mass [kg]',
+          'clad_mass' : 'Cladding Mass [kg]',
+          'refl_mass' : 'Reflector Mass [kg]',
+          'PV_mass'   : 'Pressure Vessel Mass [kg]',
          }
 critical_mass = {'UO2-CO2' : 51.07,
                  'UO2-H2O' : 51.07,
@@ -54,7 +59,8 @@ def power_dependence(fuel, coolant):
     x = []
     y = []
 
-    powers = np.arange(90000, 200000, 4583)
+#    powers = np.arange(90000, 200000, 4583)
+    powers = np.arange(90000, 200000, 10000)
     data = np.zeros(len(powers), dtype={'names' : list(labels.keys()),
                                         'formats' : ['f8']*len(labels)})
     for idx, Q in enumerate(powers):
@@ -104,10 +110,31 @@ def stacked_area_plot(results):
                          box.width, box.height * 0.9])
         plt.title(rxtr)
         plt.xlabel('Thermal Power [W]')
-        plt.ylabel('Mass [kg]')
+        plt.ylabel('Resistance to HT [K/W]')
         # Put a legend below current axis
         plt.legend(loc='upper right')
-        plt.savefig('{0}_stacked_area.png'.format(rxtr)) 
+        plt.savefig('{0}_stacked_resistance.png'.format(rxtr)) 
+
+def stacked_area_mass(results):
+    """Plot the contributions to reactor mass for neutronic and thermal limits.
+    """
+    for rxtr in results:
+        res = results[rxtr]
+        crit_mass = [critical_mass[rxtr]]*len(results[rxtr])
+        fig, ax = plt.subplots()
+
+        ax.stackplot(res['gen_Q'], res['fuel_mass'], res['clad_mass'],
+                     res['cool_mass'], res['refl_mass'], res['PV_mass'],
+                     labels=['Fuel', 'Clad', 'Cool', 'Refl', 'PV'])
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                         box.width, box.height * 0.9])
+        plt.title(rxtr)
+        plt.xlabel('Thermal Power [W]')
+        plt.ylabel('Mass [kg]')
+        # Put a legend below current axis
+        plt.legend(loc='upper left')
+        plt.savefig('{0}_stacked_mass.png'.format(rxtr)) 
 
 def gen_data():
     """Get data for all 4 reactor configurations
@@ -147,3 +174,4 @@ plot_results(data, 'gen_Q', 'h_bar')
 #plot_results(data, 'gen_Q', 'R_cond_clad')
 #plot_results(data, 'Re', 'Nu')
 stacked_area_plot(data)
+stacked_area_mass(data)

@@ -217,6 +217,7 @@ class Flow:
         self.fuelprops = pp.fuel_props[fuel]
         self.reflprops = pp.refl_props[refl]
         self.cladprops = pp.clad_props[clad]
+        self.pv_props  = pp.pv_props['SS304']
         self.fps = flowprops
         
         # set up geometry
@@ -241,7 +242,7 @@ class Flow:
         self.A_core = self.core_r**2 * math.pi 
         self.clad_frac = ((self.c + self.r_channel)**2 -
                            self.r_channel**2)/self.r_channel**2
-
+        
         self.A_flow = self.A_core * (1 - self.fuel_frac) * (1-self.clad_frac)
         self.A_clad = self.A_core * (1-self.fuel_frac) * (self.clad_frac)
         self.A_fuel = self.A_core * self.fuel_frac
@@ -395,6 +396,16 @@ class Flow:
         
         return (self.gen_Q - self.Q_therm)**2
 
+    def PV_thickness(self):
+        """Calculate required pressure vessel thickness, volume
+        """
+        R = self.core_r * self.opt_refl_mult[self.fuel][self.coolant]
+        # from faculty.washington.edu/vkumar/me356/pv_rules.pdf
+        t_PV = R*self.fps.P / (self.pv_props['strength'] - 0.2*self.fps.P)
+
+        self.vol_PV = ((R+t_PV)**2 - R**2)*math.pi*self.L +\
+                       ((R+t_PV)**3 - R**3)*(4/3)*math.pi
+        
     def calc_reactor_mass(self):
         """Based on results of the iteration, calculate the reactor mass.
 
@@ -403,18 +414,21 @@ class Flow:
             Vol_fuel: total fuel volume [m^3]
             mass: total fuel mass[kg]
         """
-        opt_refl_mult = {'UW'  : {'CO2' : 0.344, 'H2O' : 0.296},
-                         'UO2' : {'CO2' : 0.165, 'H2O' : 0.158}
-                        }
+        self.opt_refl_mult = {'UW'  : {'CO2' : 1.344, 'H2O' : 1.296},
+                              'UO2' : {'CO2' : 1.165, 'H2O' : 1.158}
+                             }
 
-        fuel_mass = self.vol_fuel * self.fuelprops['rho_fuel']
-        cool_mass = self.vol_cool * self.fps.rho
-        clad_mass = self.vol_cool * self.cladprops['rho']
-        refl_mult = opt_refl_mult[self.fuel][self.coolant]
-        refl_mass = ((self.core_r * refl_mult)**2 - self.core_r**2) *\
+        self.fuel_mass = self.vol_fuel * self.fuelprops['rho_fuel']
+        self.cool_mass = self.vol_cool * self.fps.rho
+        self.clad_mass = self.vol_clad * self.cladprops['rho']
+        refl_mult = self.opt_refl_mult[self.fuel][self.coolant]
+        self.refl_mass = ((self.core_r * refl_mult)**2 - self.core_r**2) *\
                      self.L * self.reflprops['rho']
-        
-        self.mass = fuel_mass + cool_mass + refl_mass + clad_mass
+        # calculate Pressure Vessel mass
+        self.PV_thickness()
+        self.PV_mass = self.vol_PV * self.pv_props['rho']
+        self.mass = self.fuel_mass + self.cool_mass + self.refl_mass +\
+                    self.clad_mass + self.PV_mass
     
     def constrain_radius(self):
         """Constrain the core radius based on criticality requirements.
