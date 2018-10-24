@@ -16,6 +16,8 @@ import pandas
 
 # import Flow class
 from reactor_mass import reactor_mass
+import physical_properties as pp
+from ht_functions import Flow, oned_flow_modeling
 
 labels = {'mass' : 'Reactor Mass [kg]',
           'Re' : 'Reynolds Number [-]',
@@ -57,8 +59,17 @@ def power_dependence(fuel, coolant):
     powers = np.arange(90000, 200000, 4583)
     data = np.zeros(len(powers), dtype={'names' : list(labels.keys()),
                                         'formats' : ['f8']*len(labels)})
+    # get coolant properties
+    flow_props = pp.FlowProperties(coolant, m_dot, (T[0],T[1]), P[coolant])
+    # initialize reactor model
+    rxtr = Flow(0.005, 0.00031, 1, 1, fuel, coolant, 
+                'Inconel-718', 'Carbon', flow_props)
+    
     for idx, Q in enumerate(powers):
-        rxtr = reactor_mass(fuel, coolant, Q, m_dot, T, P[coolant])
+        rxtr.Q_therm = Q
+        # perform 1D calculation
+        oned_flow_modeling(rxtr)
+
         for key in labels.keys():
             data[idx][key] = rxtr.__dict__[key]
 
@@ -93,7 +104,6 @@ def stacked_area_plot(results):
     """
     for rxtr in results:
         res = results[rxtr]
-        crit_mass = [critical_mass[rxtr]]*len(results[rxtr])
         fig, ax = plt.subplots()
 
         ax.stackplot(res['gen_Q'], res['R_conv'], res['R_cond_fuel'],
@@ -114,7 +124,6 @@ def stacked_area_mass(results):
     """
     for rxtr in results:
         res = results[rxtr]
-        crit_mass = [critical_mass[rxtr]]*len(results[rxtr])
         fig, ax = plt.subplots()
 
         ax.stackplot(res['gen_Q'], res['fuel_mass'], res['clad_mass'],
@@ -140,6 +149,7 @@ def gen_data():
         fuel = config.split('-')[0]
         cool = config.split('-')[1]
         
+
         results[config] = power_dependence(fuel, cool)
         np.savetxt(config + '.csv', results[config], delimiter=',',
                    fmt='%10.5f', header=','.join(list(labels.keys())))

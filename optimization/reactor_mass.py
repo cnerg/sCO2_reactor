@@ -35,7 +35,7 @@ def reactor_mass(fuel, coolant, power, m_dot, T, P,
     # perform 1D calculation
     oned_flow_modeling(rxtr)
 
-    return rxtr
+    return rxtr.mass
 
 Q_therm = 90000
 m_dot = 1.12
