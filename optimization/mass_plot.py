@@ -37,11 +37,6 @@ labels = {'mass' : 'Reactor Mass [kg]',
           'refl_mass' : 'Reflector Mass [kg]',
           'PV_mass'   : 'Pressure Vessel Mass [kg]',
          }
-critical_mass = {'UO2-CO2' : 51.07,
-                 'UO2-H2O' : 51.07,
-                 'UW-CO2'  : 167.2,
-                 'UW-H2O'  : 167.2
-                }
 
 T = (900,1100)
 P = {'CO2' : (1.79e7, 1.73e7), 
@@ -59,8 +54,7 @@ def power_dependence(fuel, coolant):
     x = []
     y = []
 
-#    powers = np.arange(90000, 200000, 4583)
-    powers = np.arange(90000, 200000, 10000)
+    powers = np.arange(90000, 200000, 4583)
     data = np.zeros(len(powers), dtype={'names' : list(labels.keys()),
                                         'formats' : ['f8']*len(labels)})
     for idx, Q in enumerate(powers):
