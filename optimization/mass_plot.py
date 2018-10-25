@@ -19,25 +19,26 @@ from reactor_mass import reactor_mass
 import physical_properties as pp
 from ht_functions import Flow, oned_flow_modeling
 
-labels = {'mass' : 'Reactor Mass [kg]',
-          'Re' : 'Reynolds Number [-]',
-          'h_bar' : 'Heat Transfer Coefficient [W/m^2-K]',
-          'fuel_frac' : 'Core Fuel Fraction [-]',
-          'Nu' : 'Nusselt Number [-]',
-          'core_r' : 'Core Radius [m]',
-          'A_flow' : 'Coolant Flow Area [m]',
-          'gen_Q'  : 'Core Thermal Power [W]',
-          'LD'     : 'L over D [-]',
+labels = {'mass'        : 'Reactor Mass [kg]',
+          'Re'          : 'Reynolds Number [-]',
+          'h_bar'       : 'Heat Transfer Coefficient [W/m^2-K]',
+          'fuel_frac'   : 'Core Fuel Fraction [-]',
+          'Nu'          : 'Nusselt Number [-]',
+          'core_r'      : 'Core Radius [m]',
+          'A_flow'      : 'Coolant Flow Area [m]',
+          'gen_Q'       : 'Core Thermal Power [W]',
+          'Q_therm'     : 'Required Core Thermal Power [W]',
+          'LD'          : 'L over D [-]',
           'radius_cond' : 'Av. Distance to Conduction [m]',
           'R_cond_fuel' : 'Resistance to Conduction in Fuel [K/W]',
-          'R_conv' : 'Resistance to Convection [K/W]',
-          'R_tot'  : 'Total Resistance to Heat Transfer [K/W]',
+          'R_conv'      : 'Resistance to Convection [K/W]',
+          'R_tot'       : 'Total Resistance to Heat Transfer [K/W]',
           'R_cond_clad' : 'Resistance to Conduction in Clad [K/W]',
-          'fuel_mass' : 'Fuel Mass [kg]',
-          'cool_mass' : 'Coolant Mass [kg]',
-          'clad_mass' : 'Cladding Mass [kg]',
-          'refl_mass' : 'Reflector Mass [kg]',
-          'PV_mass'   : 'Pressure Vessel Mass [kg]',
+          'fuel_mass'   : 'Fuel Mass [kg]',
+          'cool_mass'   : 'Coolant Mass [kg]',
+          'clad_mass'   : 'Cladding Mass [kg]',
+          'refl_mass'   : 'Reflector Mass [kg]',
+          'PV_mass'     : 'Pressure Vessel Mass [kg]',
          }
 
 T = (900,1100)
@@ -164,6 +165,7 @@ def fit_power_curve(power, mass):
     return popt, pcov
 
 data = gen_data()
+plot_results(data, 'gen_Q', 'Q_therm')
 plot_results(data, 'gen_Q', 'mass')
 plot_results(data, 'gen_Q', 'Re')
 plot_results(data, 'gen_Q', 'fuel_frac')
