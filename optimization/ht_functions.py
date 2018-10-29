@@ -354,7 +354,7 @@ class Flow:
             # set N_channels and guess_channels
             self.fuel_frac = self.get_dp_constrained_Nchannels()
             self.constrain_radius()
-            self.set_geom
+            self.set_geom()
             self.characterize_flow()
             self.calc_dp()
 
@@ -375,12 +375,12 @@ class Flow:
         
         req_G_dot = v_req * self.fps.rho
         req_A_flow = self.fps.m_dot / req_G_dot
-
+        
         # get total channel area
         req_A_channels = req_A_flow / (1-self.clad_frac)
         # get required fuel fraction    
         req_fuel_frac = req_A_channels / self.A_core
-        
+         
         return req_fuel_frac
 
     def compute_Q_from_guess(self, inp_guess):
