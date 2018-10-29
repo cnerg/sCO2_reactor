@@ -45,7 +45,8 @@ T = (900,1100)
 P = {'CO2' : (1.79e7, 1.73e7), 
      'H2O' : (4.84e7, 4.77e7)
     }
-m_dot = 1.15
+m_dot = 2
+power = 150
 
 def lin_func(xdata, coeffs):
     
@@ -68,6 +69,30 @@ def power_dependence(fuel, coolant):
     
     for idx, Q in enumerate(powers):
         rxtr.Q_therm = Q
+        # perform 1D calculation
+        oned_flow_modeling(rxtr)
+
+        for key in labels.keys():
+            data[idx][key] = rxtr.__dict__[key]
+
+    return data
+
+def m_dot_dependence(fuel, coolant):
+    """Calculate reactor mass as function of power
+    """
+    x = []
+    y = []
+
+    mdots = np.linspace(0.5, 1, 100)
+    data = np.zeros(len(mdots), dtype={'names' : list(labels.keys()),
+                                        'formats' : ['f8']*len(labels)})
+    
+    for idx, m in enumerate(mdots):
+        # get coolant properties
+        flow_props = pp.FlowProperties(coolant, m, (T[0],T[1]), P[coolant])
+        # initialize reactor model
+        rxtr = Flow(0.005, 0.00031, 1, 1, fuel, coolant, 
+                'Inconel-718', 'Carbon', flow_props)
         # perform 1D calculation
         oned_flow_modeling(rxtr)
 
@@ -144,18 +169,20 @@ def gen_data():
     """Get data for all 4 reactor configurations
     """
     rxtr_configs = ['UO2-CO2', 'UO2-H2O', 'UW-CO2', 'UW-H2O']
-    results = {}
+    power_results = {}
+    m_dot_results = {}
 
     for config in rxtr_configs:
         fuel = config.split('-')[0]
         cool = config.split('-')[1]
         
 
-        results[config] = power_dependence(fuel, cool)
-        np.savetxt(config + '.csv', results[config], delimiter=',',
-                   fmt='%10.5f', header=','.join(list(labels.keys())))
+        power_results[config] = power_dependence(fuel, cool)
+        
+#        np.savetxt(config + '.csv', results[config], delimiter=',',
+#                   fmt='%10.5f', header=','.join(list(labels.keys())))
 
-    return results
+    return power_results, m_dot_results
 
 def fit_power_curve(power, mass):
     """Get curve fit for power mass relationship.
@@ -164,7 +191,7 @@ def fit_power_curve(power, mass):
 
     return popt, pcov
 
-data = gen_data()
+data, mdot_data = gen_data()
 plot_results(data, 'gen_Q', 'Q_therm')
 plot_results(data, 'gen_Q', 'mass')
 plot_results(data, 'gen_Q', 'Re')
