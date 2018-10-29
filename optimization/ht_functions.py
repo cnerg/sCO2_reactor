@@ -219,7 +219,7 @@ class Flow:
         self.cladprops = pp.clad_props[clad]
         self.pv_props  = pp.pv_props['SS304']
         self.fps = flowprops
-        
+        self.m_dot = flowprops.m_dot   
         # set up geometry
         self.set_geom()
         self.dT = self.fuelprops['T_center'] - self.fps.T  # temp. drop fuel -> coolant
@@ -348,7 +348,7 @@ class Flow:
         """
 
         self.calc_dp()
-        while self.dp > self.fps.dp_limit:
+        while self.fps.dp_limit - self.dp < -1e-4:
             # set N_channels and guess_channels
             self.fuel_frac = self.get_dp_constrained_Nchannels()
             self.constrain_radius()
@@ -376,9 +376,10 @@ class Flow:
         
         # get total channel area
         req_A_channels = req_A_flow / (1-self.clad_frac)
+        
         # get required fuel fraction    
-        req_fuel_frac = req_A_channels / self.A_core
-         
+        req_fuel_frac = 1 - (req_A_channels / self.A_core)
+        
         return req_fuel_frac
 
     def compute_Q_from_guess(self, inp_guess):
