@@ -285,7 +285,7 @@ class Flow:
         self.v = G_dot / self.fps.rho
         # calculate Reynolds Number
         self.Re = self.fps.rho * self.v * self.D_e / self.fps.mu
-        # Dittus-Boelter equation (9-22) from El-Wakil
+        # Nusselt Correlations from EES
         self.Nu, Nu_H, self.f = pipeflow_nd(self.Re, self.fps.Pr, self.LD, self.relrough)
         # heat transfer coefficient
         self.h_bar = self.Nu * self.fps.k_cool / self.D_e
@@ -312,7 +312,6 @@ class Flow:
         self.radius_cond = math.sqrt(self.A_fuel / self.N_channels) / 2
         self.XS_A_cond = math.pi * self.r_channel * self.L * 2 * self.N_channels
         
-        
         self.R_cond_fuel = self.radius_cond / (self.fuelprops['k'] * self.XS_A_cond)
         self.R_cond_clad = math.log(1 + self.c/self.r_channel)\
                         /(2*math.pi*self.cladprops['k']*self.L*self.N_channels)
@@ -325,7 +324,6 @@ class Flow:
         # consider axial/radial flux variation (El-Wakil 4-30a)
         self.gen_Q = q_trip_max * 0.275
         
-
     def calc_dp(self):
         """Calculate axial pressure drop across the reactor core.
 
@@ -409,10 +407,10 @@ class Flow:
         """
         R = self.core_r * self.opt_refl_mult[self.fuel][self.coolant]
         # from faculty.washington.edu/vkumar/me356/pv_rules.pdf
-        t_PV = R*self.fps.P / (self.pv_props['strength'] - 0.2*self.fps.P)
-
-        self.vol_PV = ((R+t_PV)**2 - R**2)*math.pi*self.L +\
-                       ((R+t_PV)**3 - R**3)*(4/3)*math.pi
+        self.t_PV = R*self.fps.P / (self.pv_props['strength'] - 0.2*self.fps.P)
+        
+        self.vol_PV = ((R+self.t_PV)**2 - R**2)*math.pi*self.L +\
+                       ((R+self.t_PV)**3 - R**3)*(4/3)*math.pi
         
     def calc_reactor_mass(self):
         """Based on results of the iteration, calculate the reactor mass.
@@ -430,8 +428,9 @@ class Flow:
         self.cool_mass = self.vol_cool * self.fps.rho
         self.clad_mass = self.vol_clad * self.cladprops['rho']
         refl_mult = self.opt_refl_mult[self.fuel][self.coolant]
-        self.refl_mass = ((self.core_r * refl_mult)**2 - self.core_r**2) *\
-                     self.L * self.reflprops['rho']
+        self.vol_refl = ((self.core_r * refl_mult)**2 - self.core_r**2) *\
+                          self.L * math.pi
+        self.refl_mass = self.vol_refl * self.reflprops['rho']
         # calculate Pressure Vessel mass
         self.PV_thickness()
         self.PV_mass = self.vol_PV * self.pv_props['rho']
@@ -445,24 +444,24 @@ class Flow:
         --------------------
             core_r (float): critical core radius based on fuel fraction [m]
         """
-
-#       coeffs = { 'UO2' : {'CO2' : (0.1322,  -0.59634),
-#                           'H2O' : (0.1367,  -0.45801)
-#                          },
-
-#                  'UW'  : {'CO2' : (0.1687,  -0.57327),
-#                           'H2O' : (0.1681,  -0.51622)
-#                          }
-#                }
-        
-        coeffs = { 'UO2' : {'CO2' : (0.1631,  -0.64517),
-                            'H2O' : (0.1692,  -0.49551)
+#     Critical Radius of Buried Reactor
+        coeffs = { 'UO2' : {'CO2' : (0.1322,  -0.59634),
+                            'H2O' : (0.1367,  -0.45801)
                            },
 
-                   'UW'  : {'CO2' : (0.1968,  -0.58142),
-                            'H2O' : (0.2024,  -0.49903)
+                   'UW'  : {'CO2' : (0.1687,  -0.57327),
+                            'H2O' : (0.1681,  -0.51622)
                            }
                  }
+#     Critical Radius of Reactor in Space  
+#       coeffs = { 'UO2' : {'CO2' : (0.1631,  -0.64517),
+#                           'H2O' : (0.1692,  -0.49551)
+#                          },
+
+#                  'UW'  : {'CO2' : (0.1968,  -0.58142),
+#                           'H2O' : (0.2024,  -0.49903)
+#                          }
+#                }
         
         self.core_r = coeffs[self.fuel][self.coolant][0] *\
                       math.pow(self.fuel_frac, 
