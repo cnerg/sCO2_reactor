@@ -33,7 +33,7 @@ def pipeflow_turbulent(Re, Pr, LD, relrough):
         f_fd=(-2*math.log(
                  (relrough/3.71) -
                  (1.975/Re) * math.log((relrough/3.93)**1.092 +
-                 (7.627/(Re + 395.9)), 10), 10)) ** (-2)
+                 (7.627/(Re + 395.9))), 10)) ** (-2)
     
     #Gnielinski, V.,, Int. Chem. Eng., 16, 359, 1976
     Nusselt_L= ((f_fd/8)*(Re-1000)*Pr)/(1+12.7*math.sqrt(f_fd/8)*(Pr **(2/3) - 1)) 
