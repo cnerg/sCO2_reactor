@@ -219,7 +219,7 @@ class Flow:
         self.cladprops = pp.clad_props[clad]
         self.pv_props  = pp.pv_props['SS304']
         self.fps = flowprops
-        
+        self.m_dot = flowprops.m_dot   
         # set up geometry
         self.set_geom()
         self.dT = self.fuelprops['T_center'] - self.fps.T  # temp. drop fuel -> coolant
@@ -348,9 +348,11 @@ class Flow:
         """
 
         self.calc_dp()
-        while self.dp > self.fps.dp_limit:
+        while self.fps.dp_limit - self.dp < -1e-4:
             # set N_channels and guess_channels
-            self.N_channels = self.get_dp_constrained_Nchannels()
+            self.fuel_frac = self.get_dp_constrained_Nchannels()
+            self.constrain_radius()
+            self.set_geom()
             self.characterize_flow()
             self.calc_dp()
 
@@ -368,10 +370,17 @@ class Flow:
         """
         v_req = math.sqrt(2*self.D_e * self.fps.dp_limit /
                           (self.f * self.L * self.fps.rho))
-        req_channels = math.ceil(
-            self.fps.m_dot / (self.A_flow * self.fps.rho * v_req))
-
-        return req_channels
+        
+        req_G_dot = v_req * self.fps.rho
+        req_A_flow = self.fps.m_dot / req_G_dot
+        
+        # get total channel area
+        req_A_channels = req_A_flow / (1-self.clad_frac)
+        
+        # get required fuel fraction    
+        req_fuel_frac = 1 - (req_A_channels / self.A_core)
+        
+        return req_fuel_frac
 
     def compute_Q_from_guess(self, inp_guess):
         """Perform single 1D heat flow calculation. This method calls the

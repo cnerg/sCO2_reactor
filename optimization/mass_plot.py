@@ -20,6 +20,8 @@ import physical_properties as pp
 from ht_functions import Flow, oned_flow_modeling
 
 labels = {'mass'        : 'Reactor Mass [kg]',
+          'm_dot'       : 'Mass Flow Rate [kg/s]',
+          'dp'          : 'Pressure Drop [Pa]',
           'Re'          : 'Reynolds Number [-]',
           'h_bar'       : 'Heat Transfer Coefficient [W/m^2-K]',
           'fuel_frac'   : 'Core Fuel Fraction [-]',
@@ -45,8 +47,8 @@ T = (900,1100)
 P = {'CO2' : (1.79e7, 1.73e7), 
      'H2O' : (4.84e7, 4.77e7)
     }
-m_dot = 2
-power = 150
+m_dot = 1
+power = 90000
 
 def lin_func(xdata, coeffs):
     
@@ -83,7 +85,7 @@ def m_dot_dependence(fuel, coolant):
     x = []
     y = []
 
-    mdots = np.linspace(0.5, 1, 100)
+    mdots = np.linspace(0.5, 5, 100)
     data = np.zeros(len(mdots), dtype={'names' : list(labels.keys()),
                                         'formats' : ['f8']*len(labels)})
     
@@ -91,11 +93,11 @@ def m_dot_dependence(fuel, coolant):
         # get coolant properties
         flow_props = pp.FlowProperties(coolant, m, (T[0],T[1]), P[coolant])
         # initialize reactor model
-        rxtr = Flow(0.005, 0.00031, 1, 1, fuel, coolant, 
+        rxtr = Flow(0.005, 0.00031, 1, power, fuel, coolant, 
                 'Inconel-718', 'Carbon', flow_props)
         # perform 1D calculation
         oned_flow_modeling(rxtr)
-
+        
         for key in labels.keys():
             data[idx][key] = rxtr.__dict__[key]
 
@@ -178,7 +180,7 @@ def gen_data():
         
 
         power_results[config] = power_dependence(fuel, cool)
-        
+        m_dot_results[config] = m_dot_dependence(fuel, cool)        
 #        np.savetxt(config + '.csv', results[config], delimiter=',',
 #                   fmt='%10.5f', header=','.join(list(labels.keys())))
 
@@ -192,6 +194,9 @@ def fit_power_curve(power, mass):
     return popt, pcov
 
 data, mdot_data = gen_data()
+plot_results(mdot_data, 'm_dot', 'mass')
+plot_results(mdot_data, 'm_dot', 'gen_Q')
+plot_results(data, 'gen_Q', 'dp')
 plot_results(data, 'gen_Q', 'Q_therm')
 plot_results(data, 'gen_Q', 'mass')
 plot_results(data, 'gen_Q', 'Re')
