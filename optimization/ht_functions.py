@@ -174,7 +174,7 @@ def find_n_channels(flow):
 
     """
     res = minimize_scalar(_calc_n_channels_error, bounds=(0.1, 1), args=(flow),
-                          method='Bounded', options={'xatol': 1e-5})
+                          method='Bounded', options={'xatol': 1e-10})
 
 class Flow:
     """ Perform 1D Flow Analysis
@@ -286,7 +286,7 @@ class Flow:
         # calculate Reynolds Number
         self.Re = self.fps.rho * self.v * self.D_e / self.fps.mu
         # Nusselt Correlations from EES
-        self.Nu, Nu_H, self.f = pipeflow_nd(self.Re, self.fps.Pr, self.LD, self.relrough)
+        self.Nu, self.f = pipeflow_turbulent(self.Re, self.fps.Pr, self.LD, self.relrough)
         # heat transfer coefficient
         self.h_bar = self.Nu * self.fps.k_cool / self.D_e
 
