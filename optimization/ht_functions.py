@@ -3,6 +3,7 @@ from scipy.optimize import minimize_scalar
 # import physical properties
 import physical_properties as pp
 
+
 def pipeflow_turbulent(Re, Pr, LD, relrough):
     """Turbulent pipeflow correlation from EES. This function proiveds a nusselt
     number and friction factor for turbulent flow in a pipe.
@@ -101,27 +102,19 @@ def pipeflow_nd(Re, Pr, LD, relrough):
         Nusselt_H (float): nusselt number at constant heat flux
         f (float): friction factor
     """
-    if Re > 3000:
-        Nusselt_T, f = pipeflow_turbulent(Re, Pr, LD, relrough)
-        Nusselt_H = Nusselt_T
-    elif Re < 2300:
-        Nusselt_T, Nusselt_H, f = pipeflow_laminar(Re, Pr, LD, relrough)
-    else:
-        # transistion from laminar to turbulent
-        
-        # get turbulent
-        Nusselt_T, f = pipeflow_turbulent(3000, Pr, LD, relrough)
-        Nusselt_H = Nusselt_T
-        
-        # get laminar
-        Nusselt_lam_T, Nusselt_lam_H, f_lam = pipeflow_laminar(2300, Pr, LD, relrough)
-        
-        # mix the two
-        Nusselt_T=Nusselt_lam_T+(Re-2300)/(3000-2300)*(Nusselt_T-Nusselt_lam_T) 
-        Nusselt_H=Nusselt_lam_H+(Re-2300)/(3000-2300)*(Nusselt_H-Nusselt_lam_H) 
+    # smoothing factor
+    m=6
 
-        f=f_lam+(Re-2300)/(3000-2300)*(f-f_lam) 
-
+    # get turbulent
+    Nusselt_T, f = pipeflow_turbulent(Re, Pr, LD, relrough)
+    Nusselt_H = Nusselt_T
+   
+    # get laminar
+    Nusselt_lam_T, Nusselt_lam_H, f_lam = pipeflow_laminar(Re, Pr, LD, relrough)
+    Nusselt_T = (Nusselt_lam_T**m + Nusselt_T**m)**(1/m)
+    Nusselt_H = (Nusselt_lam_H**m + Nusselt_H**m)**(1/m)
+    f = (f_lam**m + f**m)**(1/m)
+        
     return Nusselt_T, Nusselt_H, f
 
 def oned_flow_modeling(analyze_flow):
@@ -140,7 +133,6 @@ def oned_flow_modeling(analyze_flow):
     find_n_channels(analyze_flow)
     analyze_flow.adjust_dp()
     analyze_flow.calc_reactor_mass()
-
 
 def _calc_n_channels_error(guess, flowiteration):
     """Calculate squared error between guess value and N channels for all
@@ -280,13 +272,13 @@ class Flow:
         # relative roughness
         self.relrough = self.rough / (self.r_channel*2)
         # calculate mass flux
-        G_dot = self.fps.m_dot / self.A_flow
+        self.G_dot = self.fps.m_dot / self.A_flow
         # calculate flow velocity from mass flux
-        self.v = G_dot / self.fps.rho
+        self.v = self.G_dot / self.fps.rho
         # calculate Reynolds Number
         self.Re = self.fps.rho * self.v * self.D_e / self.fps.mu
         # Nusselt Correlations from EES
-        self.Nu, self.f = pipeflow_turbulent(self.Re, self.fps.Pr, self.LD, self.relrough)
+        self.Nu, NuH, self.f = pipeflow_nd(self.Re, self.fps.Pr, self.LD, self.relrough)
         # heat transfer coefficient
         self.h_bar = self.Nu * self.fps.k_cool / self.D_e
 
@@ -323,7 +315,9 @@ class Flow:
 
         # consider axial/radial flux variation (El-Wakil 4-30a)
         self.gen_Q = q_trip_max * 0.275
-        
+        #if self.Re < 3000 and self.Re > 2300:
+        #    print(self.fuel_frac, self.gen_Q - self.Q_therm)
+
     def calc_dp(self):
         """Calculate axial pressure drop across the reactor core.
 
@@ -467,3 +461,5 @@ class Flow:
         self.core_r = coeffs[self.fuel][self.coolant][0] *\
                       math.pow(self.fuel_frac, 
                                coeffs[self.fuel][self.coolant][1])
+
+

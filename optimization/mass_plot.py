@@ -47,8 +47,8 @@ T = (900,1100)
 P = {'CO2' : (1.79e7, 1.73e7), 
      'H2O' : (4.84e7, 4.77e7)
     }
-m_dot = 2
-power = 90000
+m_dot = 0.5
+power = 150000
 
 def lin_func(xdata, coeffs):
     
@@ -70,13 +70,12 @@ def power_dependence(fuel, coolant):
                 'Inconel-718', 'Carbon', flow_props)
     
     for idx, Q in enumerate(powers):
-        print(Q)
         rxtr.Q_therm = Q
         # perform 1D calculation
         oned_flow_modeling(rxtr)
         for key in labels.keys():
             data[idx][key] = rxtr.__dict__[key]
-
+        
     return data
 
 def m_dot_dependence(fuel, coolant):
@@ -122,7 +121,7 @@ def plot_results(results, ind, dep):
     plt.legend()
     title1 = " ".join(labels[dep].split()[:-1])
     title2 = " ".join(labels[ind].split()[:-1])
-    plt.title('{0} vs. {1}'.format(title1, title2))
+    plt.title('{0} vs. {1} ({2} [kg/s])'.format(title1, title2, m_dot))
     plt.xlabel(labels[ind])
     plt.ylabel(labels[dep])
     plt.savefig('{0}_vs_{1}.png'.format(dep, ind), dpi=700) 
@@ -171,11 +170,11 @@ def gen_data():
     """Get data for all 4 reactor configurations
     """
     rxtr_configs = ['UO2-CO2', 'UO2-H2O', 'UW-CO2', 'UW-H2O']
-#    rxtr_configs = ['UW-CO2']
     power_results = {}
     m_dot_results = {}
 
     for config in rxtr_configs:
+        print(config)
         fuel = config.split('-')[0]
         cool = config.split('-')[1]
         
@@ -195,16 +194,16 @@ def fit_power_curve(power, mass):
     return popt, pcov
 
 data, mdot_data = gen_data()
-plot_results(mdot_data, 'm_dot', 'mass')
-plot_results(mdot_data, 'm_dot', 'gen_Q')
-plot_results(data, 'gen_Q', 'dp')
-plot_results(data, 'gen_Q', 'Q_therm')
+#plot_results(mdot_data, 'm_dot', 'mass')
+#plot_results(mdot_data, 'm_dot', 'gen_Q')
+#plot_results(data, 'gen_Q', 'dp')
+#plot_results(data, 'gen_Q', 'Q_therm')
 plot_results(data, 'gen_Q', 'mass')
-plot_results(data, 'gen_Q', 'Re')
-plot_results(data, 'gen_Q', 'fuel_frac')
-plot_results(data, 'gen_Q', 'core_r')
+#plot_results(data, 'gen_Q', 'Re')
+#plot_results(data, 'gen_Q', 'fuel_frac')
+#plot_results(data, 'gen_Q', 'core_r')
 #plot_results(data, 'gen_Q', 'A_flow')
-plot_results(data, 'gen_Q', 'h_bar')
+#plot_results(data, 'gen_Q', 'h_bar')
 #plot_results(data, 'gen_Q', 'LD')
 #plot_results(data, 'gen_Q', 'R_cond_fuel')
 #plot_results(data, 'gen_Q', 'radius_cond')
@@ -212,5 +211,5 @@ plot_results(data, 'gen_Q', 'h_bar')
 #plot_results(data, 'gen_Q', 'R_tot')
 #plot_results(data, 'gen_Q', 'R_cond_clad')
 #plot_results(data, 'Re', 'Nu')
-stacked_area_plot(data)
-stacked_area_mass(data)
+#stacked_area_plot(data)
+#stacked_area_mass(data)
