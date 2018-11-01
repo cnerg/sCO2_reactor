@@ -34,9 +34,9 @@ refl_props = {'Carbon'      :  {
                       }
              }
 pv_props   = {'SS304'       :  {
-                # tensile strength (Pa) @ 800F  (SS information center)
-                'strength' : 509e6,
-                'rho'      : 8000   # density kg/m^3
+                # tensile strength (Pa) @ 538C  (SS information center)
+                'strength' : 275.79e6,
+                'rho'      : 8050   # density kg/m^3
                       }
     }
 

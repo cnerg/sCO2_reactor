@@ -6,7 +6,7 @@ import physical_properties as pp
 
 def reactor_mass(fuel, coolant, power, m_dot, T, P,
                  clad='Inconel-718', refl='Carbon',
-                 cool_r=0.005, clad_t=0.00031, AR=1):
+                 cool_r=0.0025, clad_t=0.00031, AR=1):
     """Produce the mass of a valid (coolable and critical) reactor design 
     given flow conditions and required thermal power output.
 

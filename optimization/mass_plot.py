@@ -47,7 +47,7 @@ T = (900,1100)
 P = {'CO2' : (1.79e7, 1.73e7), 
      'H2O' : (4.84e7, 4.77e7)
     }
-m_dot = 0.5
+m_dot = 1
 power = 150000
 
 def lin_func(xdata, coeffs):
@@ -66,7 +66,7 @@ def power_dependence(fuel, coolant):
     # get coolant properties
     flow_props = pp.FlowProperties(coolant, m_dot, (T[0],T[1]), P[coolant])
     # initialize reactor model
-    rxtr = Flow(0.005, 0.00031, 1, 1, fuel, coolant, 
+    rxtr = Flow(0.0025, 0.00031, 1, 1, fuel, coolant, 
                 'Inconel-718', 'Carbon', flow_props)
     
     for idx, Q in enumerate(powers):
@@ -212,4 +212,4 @@ plot_results(data, 'gen_Q', 'mass')
 #plot_results(data, 'gen_Q', 'R_cond_clad')
 #plot_results(data, 'Re', 'Nu')
 #stacked_area_plot(data)
-#stacked_area_mass(data)
+stacked_area_mass(data)

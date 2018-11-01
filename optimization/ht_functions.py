@@ -402,7 +402,7 @@ class Flow:
         """
         R = self.core_r * self.opt_refl_mult[self.fuel][self.coolant]
         # from faculty.washington.edu/vkumar/me356/pv_rules.pdf
-        self.t_PV = R*self.fps.P / (self.pv_props['strength'] - 0.2*self.fps.P)
+        self.t_PV = R*self.fps.P / (self.pv_props['strength'] + 0.6*self.fps.P)
         
         self.vol_PV = ((R+self.t_PV)**2 - R**2)*math.pi*self.L +\
                        ((R+self.t_PV)**3 - R**3)*(4/3)*math.pi
