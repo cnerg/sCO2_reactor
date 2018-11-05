@@ -232,8 +232,6 @@ class Flow:
             D_e: equivalent flow diameter [m]
         """
         self.A_core = self.core_r**2 * math.pi 
-        self.clad_frac = ((self.c + self.r_channel)**2 -
-                           self.r_channel**2)/self.r_channel**2
         self.clad_frac = (self.r_channel**2 -
                     (self.r_channel-self.c)**2)/self.r_channel**2
         self.A_flow = self.A_core * (1 - self.fuel_frac) * (1-self.clad_frac)
