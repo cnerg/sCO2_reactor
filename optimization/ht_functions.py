@@ -231,9 +231,8 @@ class Flow:
             N_channels: number of coolant channels [-]
             D_e: equivalent flow diameter [m]
         """
-        self.A_core = self.core_r**2 * math.pi 
-        self.clad_frac = (self.r_channel**2 -
-                    (self.r_channel-self.c)**2)/self.r_channel**2
+        self.A_core = self.core_r**2 * math.pi
+        self.clad_frac = 1 - self.r_channel**2 / (self.r_channel + self.c)**2
         self.A_flow = self.A_core * (1 - self.fuel_frac) * (1-self.clad_frac)
         self.A_clad = self.A_core * (1-self.fuel_frac) * (self.clad_frac)
         self.A_fuel = self.A_core * self.fuel_frac
@@ -430,6 +429,7 @@ class Flow:
         self.PV_mass = self.vol_PV * self.pv_props['rho']
         self.mass = self.fuel_mass + self.cool_mass + self.refl_mass +\
                     self.clad_mass + self.PV_mass
+        self.core_mass = self.fuel_mass + self.cool_mass + self.clad_mass
     
     def constrain_radius(self):
         """Constrain the core radius based on criticality requirements.

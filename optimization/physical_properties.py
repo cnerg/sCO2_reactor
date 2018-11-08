@@ -59,7 +59,7 @@ def load_data(coolant):
         data (ndarray): flow property data
     """
     # open datafile
-    filename = './data/{0}.txt'.format(coolant)
+    filename = '../data/{0}.txt'.format(coolant)
     lines = open(filename, 'r').readlines()
     
     data = np.zeros(len(lines), dtype={
