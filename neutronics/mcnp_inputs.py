@@ -137,7 +137,6 @@ class HomogeneousInput:
         self.rho = round(mfrac_fuel + mfrac_cool + mfrac_matr + mfrac_clad, 6)
         self.core_mass = self.core_vol * self.rho
         
-        print("MCNP Mass: ", self.core_mass / 1000) 
         # get UN composition
         fuel_comp, self.MM_fuel = md.enrich_fuel(self.enrich, self.fuel)
         components = {

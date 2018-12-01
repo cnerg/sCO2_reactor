@@ -44,29 +44,26 @@ def gen_reactor(fuel, coolant, power, m_dot, T, P,
 def write_inp(rxtr):
     """
     """
-
-    opt_refl_mult = {'UN'  : {'CO2' : 0.344, 'H2O' : 0.296},
-                     'UO2' : {'CO2' : 0.165, 'H2O' : 0.158}
-                    }
-
     cool = rxtr.coolant
-    fuel = rxtr.fuel    
+    fuel = rxtr.fuel
+    ref_mult = rxtr.opt_refl_mult[fuel][cool] - 1
+    matr = None
     if rxtr.fuel == 'UW':
         fuel = 'UN'
         matr = 'W'
-    print(rxtr.clad_frac)
-    config = {'fuel' : fuel,
-              'matr' : None,
-              'cool' : cool,
-              'r_cool' : rxtr.r_channel * 1e2,
-              'clad' : 'Inconel-718',
-              'rho_cool' : rxtr.fps.rho *1e-3,
-              'fuel_frac' : rxtr.fuel_frac,
-              'core_r' : rxtr.core_r * 1e2,
-              'ref_mult' : opt_refl_mult[fuel][cool],
-              'power' : rxtr.gen_Q * 1e-3
-             }
     
+    config = {'fuel' : fuel,
+              'matr' : matr,
+              'cool' : cool,
+              'r_cool' : rxtr.r_channel*1e2,
+              'clad' : 'Inconel-718',
+              'rho_cool' : rxtr.fps.rho*1e-3,
+              'fuel_frac' : 0.6,#rxtr.fuel_frac,
+              'core_r' : 22.5,#rxtr.core_r*1e2,
+              'ref_mult' : ref_mult,
+              'power' : rxtr.gen_Q*1e-3
+             }
+
     filename = '{0}-{1}.i'.format(fuel, cool)
     input = HomogeneousInput(config=config) 
     input.homog_core()
@@ -76,11 +73,7 @@ def write_inp(rxtr):
 Q_therm = 90000
 m_dot = 1.12
 
-test_rxtr = gen_reactor('UO2', 'CO2', Q_therm, m_dot, (900,1100), (1.79e7, 1.73e7))
+test_rxtr = gen_reactor('UW', 'CO2', Q_therm, m_dot, (900,1100), (1.79e7, 1.73e7))
 core_mass = test_rxtr.clad_mass + test_rxtr.cool_mass + test_rxtr.fuel_mass
-mfrac_fuel = test_rxtr.fuel_mass / core_mass
-mfrac_clad = test_rxtr.clad_mass / core_mass
-mfrac_cool = test_rxtr.cool_mass / core_mass
 write_inp(test_rxtr)
-print('HT mass: ', test_rxtr.core_mass)
-
+print('HT mass: ', test_rxtr.fuel_frac)
