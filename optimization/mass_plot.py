@@ -169,7 +169,8 @@ def stacked_area_mass(results):
 def gen_data():
     """Get data for all 4 reactor configurations
     """
-    rxtr_configs = ['UO2-CO2', 'UO2-H2O', 'UW-CO2', 'UW-H2O']
+#    rxtr_configs = ['UO2-CO2', 'UO2-H2O', 'UW-CO2', 'UW-H2O']
+    rxtr_configs = ['UO2-CO2']
     power_results = {}
     m_dot_results = {}
 
@@ -185,13 +186,6 @@ def gen_data():
 #                   fmt='%10.5f', header=','.join(list(labels.keys())))
 
     return power_results, m_dot_results
-
-def fit_power_curve(power, mass):
-    """Get curve fit for power mass relationship.
-    """
-    popt, pcov = curve_fit(lin_func, power, mass)
-
-    return popt, pcov
 
 data, mdot_data = gen_data()
 #plot_results(mdot_data, 'm_dot', 'mass')

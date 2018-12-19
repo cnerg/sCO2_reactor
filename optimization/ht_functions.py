@@ -166,7 +166,7 @@ def find_n_channels(flow):
         none
 
     """
-    res = minimize_scalar(_calc_n_channels_error, bounds=(0.3, 0.95), args=(flow),
+    res = minimize_scalar(_calc_n_channels_error, bounds=(0.3, 1), args=(flow),
                           method='Bounded', options={'xatol': 1e-10})
 
 class Flow:
@@ -184,7 +184,8 @@ class Flow:
     fuel_frac = 0.75  # number of required fuel channels for given flow conditions
     core_r = 1 # guess core radius
     T = 0
-    def __init__(self, cool_r, c, AR, power, fuel, cool, clad, refl, flowprops):
+    def __init__(self, cool_r, c, AR, power, fuel, cool, clad, refl, flowprops,
+                 order=3):
         """Initialize the flow iteration class.
 
         Initialized Attributes:
@@ -214,6 +215,7 @@ class Flow:
         self.fps = flowprops
         self.m_dot = flowprops.m_dot   
         # set up geometry
+        self.neutronics(order)
         self.set_geom()
         self.dT = self.fuelprops['T_center'] - self.fps.T  # temp. drop fuel -> coolant
 
@@ -400,12 +402,10 @@ class Flow:
         """Calculate required pressure vessel thickness, volume
         """
     
-        R = self.refl_r
+        R = self.r_ref
         # from faculty.washington.edu/vkumar/me356/pv_rules.pdf
-        self.t_PV = R*self.fps.P / (self.pv_props['strength'] + 0.6*self.fps.P)
+        self.r_PV = R + R*self.fps.P / (self.pv_props['strength'] + 0.6*self.fps.P)
         
-        self.vol_PV = ((R+self.t_PV)**2 - R**2)*math.pi*self.L +\
-                       ((R+self.t_PV)**3 - R**3)*(4/3)*math.pi
         
     def calc_reactor_mass(self):
         """Based on results of the iteration, calculate the reactor mass.
@@ -418,21 +418,38 @@ class Flow:
         self.refl_m = {'UW'  : {'CO2' : 1.211337},
                        'UO2' : {'CO2' : 1.08}
                       }
-        self.refl_r = self.refl_m[self.fuel][self.coolant]*self.core_r
-
+        self.r_ref = self.refl_m[self.fuel][self.coolant]*self.core_r
+        
+        self.PV_thickness()
+        # calculate volumes
+        self.vol_core = self.vol_fuel + self.vol_cool + self.vol_clad
+        self.vol_refl = (self.r_ref**2 * 2*self.r_ref * math.pi) - self.vol_core
+        self.vol_PV = (self.r_PV**2 - self.r_ref**2) * 2*self.r_PV * math.pi
+        # calculate masses
         self.fuel_mass = self.vol_fuel * self.fuelprops['rho_fuel']
         self.cool_mass = self.vol_cool * self.fps.rho
         self.clad_mass = self.vol_clad * self.cladprops['rho']
-        
-        self.vol_refl = ((self.refl_r)**2 - self.core_r**2) *\
-                          self.L * math.pi
         self.refl_mass = self.vol_refl * self.reflprops['rho']
-        # calculate Pressure Vessel mass
-        self.PV_thickness()
         self.PV_mass = self.vol_PV * self.pv_props['rho']
+        # total mass
         self.mass = self.fuel_mass + self.cool_mass + self.refl_mass +\
                     self.clad_mass + self.PV_mass
     
+    def neutronics(self, order):
+        """
+        """
+        fp = open('../data/{0}_{1}_core_radii.txt'.format(self.fuel,
+                                                          self.coolant), 'r')
+        lines = fp.readlines()
+        fp.close()
+        
+        f = []; r = []
+        for line in lines[1:]:
+            f.append(float(line.split(',')[0]))
+            r.append(float(line.split(',')[1]) / 100)
+
+        self.poly = np.polyfit(f, r, order)
+
     def constrain_radius(self):
         """Constrain the core radius based on criticality requirements.
 
@@ -445,6 +462,5 @@ class Flow:
         coeffs = {'UW'  : {'CO2' : (-85.8968, 196.3772, -161.3156, 62.3759)},
                   'UO2' : {'CO2' : ( -63.9328861, 147.44434591, -122.88976054, 48.38235672)}
                  }
-
-        self.core_r = np.polyval(coeffs[self.fuel][self.coolant],
-                                 self.fuel_frac) / 100
+        
+        self.core_r = np.polyval(self.poly, self.fuel_frac)

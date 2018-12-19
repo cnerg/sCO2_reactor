@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from mcnp_inputs import HomogeneousInput
 import parse_outputs as po
 
-target_keff = 1.02
+target_keff = 1.01
 
 fig = plt.figure()
 ax = plt.subplot(111)
@@ -90,8 +90,8 @@ def fuel_frac(config, func):
         resfile = open(resname, 'a')
         config['fuel_frac'] = frac
         config['ref_mult'], mstd = refl_mult(config, func)
-#        config['ref_mult'] = 0.08
-        config['ref_mult'] = 0.211337
+        config['ref_mult'] = 0.08
+#        config['ref_mult'] = 0.211337
         # get critical radius
         crit_radius(config, func)
         
@@ -107,7 +107,7 @@ def fuel_frac(config, func):
         resfile.close()
     
     # report the critical radius curve
-    poly = np.polyfit(results['frac'], results['radius'], 3)
+    poly = np.polyfit(results['frac'], results['radius'], 7)
     fit_fracs = np.linspace(fracs[0], fracs[-1], 1000)
     fit_radii = np.polyval(poly, fit_fracs)
     print(poly) 
@@ -136,7 +136,7 @@ def fuel_frac(config, func):
     plt.xlabel('Fuel Fraction [-]')
     plt.ylabel('Critical Core Radius [cm]')
     plt.legend()
-    plt.title('Core Radius for keff = 1.01, m=0.08')
+    plt.title('Critical Core Radius n=7')
     plt.savefig('core_r.png')
     # std of mass
     fig = plt.figure()

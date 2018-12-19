@@ -20,15 +20,17 @@ from mcnp_inputs import HomogeneousInput
 # set seed for reproducibility
 np.random.seed(1324291)
 
-# USE FOR UN
-parameters = {'core_r'    : (10, 50, 30),         
-              'fuel_frac' : (0.2, 0.95, 10),
-              'ref_mult'  : (0.12, 0.28, 33),        
-             }
 # USE FOR UO2
 parameters = {'core_r'    : (10, 50, 30),         
               'fuel_frac' : (0.2, 0.95, 10),
               'ref_mult'  : (0.08, 0.12, 33),        
+             }
+
+# USE FOR UN
+parameters = {'core_r'    : (10, 50, 30),         
+              'fuel_frac' : (1, 1, 1),
+              #'fuel_frac' : (0.2, 0.95, 10),
+              'ref_mult'  : (0.12, 0.28, 33),        
              }
 
 dimensions = list(parameters.keys())
@@ -110,7 +112,7 @@ def write_inputs(sampling_data, config):
         for param in sorted(parameters.keys()):
             header_str += str(round(sample[param], 5)) + ','
         # write the input and tar it
-        filename = str(num) + '.i'
+        filename = str(num + 9900) + '.i'
         input.write_input(filename, header_str)
         tarputs.add(filename)
 

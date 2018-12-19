@@ -36,15 +36,3 @@ def reactor_mass(fuel, coolant, power, m_dot, T, P,
     oned_flow_modeling(rxtr)
 
     return rxtr.mass
-
-Q_therm = 90000
-m_dot = 1.12
-
-test_mass = reactor_mass('UO2', 'CO2', Q_therm, m_dot, (900,1100), (1.79e7, 1.73e7))
-print('UO2 CO2', test_mass)
-test_mass = reactor_mass('UO2', 'H2O', Q_therm, m_dot, (900,1100), (4.84e7, 4.77e7))
-print('UO2 H2O', test_mass)
-test_mass = reactor_mass('UW', 'CO2', Q_therm, m_dot, (900,1100), (1.79e7, 1.73e7))
-print('UW CO2', test_mass)
-test_mass = reactor_mass('UW', 'H2O', Q_therm, m_dot, (900,1100), (4.84e7, 4.77e7))
-print('UW H2O', test_mass)

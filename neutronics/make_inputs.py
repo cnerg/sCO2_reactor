@@ -1,3 +1,4 @@
+import os
 import sys
 sys.path.append('../optimization/')
 
@@ -8,7 +9,7 @@ import physical_properties as pp
 from mcnp_inputs import HomogeneousInput
 
 
-def gen_reactor(fuel, coolant, power, m_dot, T, P,
+def gen_reactor(fuel, coolant, power, m_dot, T, P, order=3,
                 clad='Inconel-718', refl='Carbon',
                 cool_r=0.0025, clad_t=0.00031, AR=1):
     """Produce the mass of a valid (coolable and critical) reactor design 
@@ -35,7 +36,8 @@ def gen_reactor(fuel, coolant, power, m_dot, T, P,
     # get coolant properties
     flow_props = pp.FlowProperties(coolant, m_dot, (T[0],T[1]), (P[0], P[1]))
     # initialize reactor model
-    rxtr = Flow(cool_r, clad_t, AR, power, fuel, coolant, clad, refl, flow_props)
+    rxtr = Flow(cool_r, clad_t, AR, power, fuel, coolant, clad, refl,
+            flow_props, order)
     # perform 1D calculation
     oned_flow_modeling(rxtr)
 
@@ -60,7 +62,7 @@ def write_inp(rxtr):
               'rho_cool' : rxtr.fps.rho*1e-3,
               'fuel_frac' : rxtr.fuel_frac,
               'ref_mult' : ref_mult,
-              'core_r' : 13.13, #rxtr.core_r*1e2,
+              'core_r' : rxtr.core_r*1e2,
               'power' : rxtr.gen_Q*1e-3
              }
 
@@ -68,12 +70,22 @@ def write_inp(rxtr):
     input = HomogeneousInput(config=config) 
     input.homog_core()
     input.write_input(filename)
+    print(rxtr.fuel_frac, rxtr.core_r, input.tot_mass)
 
-SSnear = gen_reactor('UO2', 'CO2', 1.678e5, 1.2722, (793.8,900), (1.7906e7,1.7423e7))
-write_inp(SSnear)
-print(SSnear.__dict__)
 
-SSnear = gen_reactor('UW', 'CO2', 1.678e5, 1.2722, (793.8,900), (1.7906e7,1.7423e7))
+SSnear = gen_reactor('UW', 'CO2', 1.678e5, 1.2722, (793.8,900),
+    (1.7906e7,1.7423e7), 3)
 write_inp(SSnear)
-print(SSnear.__dict__['core_r'])
-print(SSnear.__dict__['fuel_frac'])
+print(SSnear.gen_Q)
+
+#for i in [2, 3, 4, 5, 6, 7, 8, 9]:
+#    SSnear = gen_reactor('UO2', 'CO2', 1.678e5, 1.2722, (793.8,900),
+#        (1.7906e7,1.7423e7), i)
+#    write_inp(SSnear)
+#    os.rename('./UO2-CO2.i', './UO2-CO2_{0}.i'.format(i))
+#
+#for i in [2, 3, 4, 5, 6, 7, 8, 9]:
+#    SSnear = gen_reactor('UW', 'CO2', 1.678e5, 1.2722, (793.8,900),
+#        (1.7906e7,1.7423e7), i)
+#    write_inp(SSnear)
+#    os.rename('./UN-CO2.i', './UN-CO2_{0}.i'.format(i))
