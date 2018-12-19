@@ -46,7 +46,7 @@ def write_inp(rxtr):
     """
     cool = rxtr.coolant
     fuel = rxtr.fuel
-    ref_mult = rxtr.opt_refl_mult[fuel][cool] - 1
+    ref_mult = rxtr.refl_m[fuel][cool] - 1
     matr = None
     if rxtr.fuel == 'UW':
         fuel = 'UN'
@@ -58,9 +58,9 @@ def write_inp(rxtr):
               'r_cool' : rxtr.r_channel*1e2,
               'clad' : 'Inconel-718',
               'rho_cool' : rxtr.fps.rho*1e-3,
-              'fuel_frac' : 0.6,#rxtr.fuel_frac,
-              'core_r' : 22.5,#rxtr.core_r*1e2,
+              'fuel_frac' : rxtr.fuel_frac,
               'ref_mult' : ref_mult,
+              'core_r' : 13.13, #rxtr.core_r*1e2,
               'power' : rxtr.gen_Q*1e-3
              }
 
@@ -69,11 +69,11 @@ def write_inp(rxtr):
     input.homog_core()
     input.write_input(filename)
 
+SSnear = gen_reactor('UO2', 'CO2', 1.678e5, 1.2722, (793.8,900), (1.7906e7,1.7423e7))
+write_inp(SSnear)
+print(SSnear.__dict__)
 
-Q_therm = 90000
-m_dot = 1.12
-
-test_rxtr = gen_reactor('UW', 'CO2', Q_therm, m_dot, (900,1100), (1.79e7, 1.73e7))
-core_mass = test_rxtr.clad_mass + test_rxtr.cool_mass + test_rxtr.fuel_mass
-write_inp(test_rxtr)
-print('HT mass: ', test_rxtr.fuel_frac)
+SSnear = gen_reactor('UW', 'CO2', 1.678e5, 1.2722, (793.8,900), (1.7906e7,1.7423e7))
+write_inp(SSnear)
+print(SSnear.__dict__['core_r'])
+print(SSnear.__dict__['fuel_frac'])

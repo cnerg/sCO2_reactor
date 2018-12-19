@@ -1,5 +1,6 @@
 import math
 from scipy.optimize import minimize_scalar
+import numpy as np
 # import physical properties
 import physical_properties as pp
 
@@ -165,7 +166,7 @@ def find_n_channels(flow):
         none
 
     """
-    res = minimize_scalar(_calc_n_channels_error, bounds=(0.1, 1), args=(flow),
+    res = minimize_scalar(_calc_n_channels_error, bounds=(0.3, 0.95), args=(flow),
                           method='Bounded', options={'xatol': 1e-10})
 
 class Flow:
@@ -182,7 +183,7 @@ class Flow:
     # set some guess values
     fuel_frac = 0.75  # number of required fuel channels for given flow conditions
     core_r = 1 # guess core radius
-
+    T = 0
     def __init__(self, cool_r, c, AR, power, fuel, cool, clad, refl, flowprops):
         """Initialize the flow iteration class.
 
@@ -231,13 +232,13 @@ class Flow:
             N_channels: number of coolant channels [-]
             D_e: equivalent flow diameter [m]
         """
-        self.A_core = self.core_r**2 * math.pi
+        self.A_core = self.core_r**2 * math.pi 
         self.clad_frac = 1 - self.r_channel**2 / (self.r_channel + self.c)**2
         self.A_flow = self.A_core * (1 - self.fuel_frac) * (1-self.clad_frac)
         self.A_clad = self.A_core * (1-self.fuel_frac) * (self.clad_frac)
         self.A_fuel = self.A_core * self.fuel_frac
         
-        self.L = self.AR * self.core_r
+        self.L = 2*self.AR * self.core_r
         self.LD = self.L / (self.r_channel*2)
         self.vol_fuel = self.A_fuel * self.L
         self.vol_cool = self.A_flow * self.L
@@ -398,7 +399,8 @@ class Flow:
     def PV_thickness(self):
         """Calculate required pressure vessel thickness, volume
         """
-        R = self.core_r * self.opt_refl_mult[self.fuel][self.coolant]
+    
+        R = self.refl_r
         # from faculty.washington.edu/vkumar/me356/pv_rules.pdf
         self.t_PV = R*self.fps.P / (self.pv_props['strength'] + 0.6*self.fps.P)
         
@@ -413,15 +415,16 @@ class Flow:
             Vol_fuel: total fuel volume [m^3]
             mass: total fuel mass[kg]
         """
-        self.opt_refl_mult = {'UW'  : {'CO2' : 1.344, 'H2O' : 1.296},
-                              'UO2' : {'CO2' : 1.165, 'H2O' : 1.158}
-                             }
+        self.refl_m = {'UW'  : {'CO2' : 1.211337},
+                       'UO2' : {'CO2' : 1.08}
+                      }
+        self.refl_r = self.refl_m[self.fuel][self.coolant]*self.core_r
 
         self.fuel_mass = self.vol_fuel * self.fuelprops['rho_fuel']
         self.cool_mass = self.vol_cool * self.fps.rho
         self.clad_mass = self.vol_clad * self.cladprops['rho']
-        refl_mult = self.opt_refl_mult[self.fuel][self.coolant]
-        self.vol_refl = ((self.core_r * refl_mult)**2 - self.core_r**2) *\
+        
+        self.vol_refl = ((self.refl_r)**2 - self.core_r**2) *\
                           self.L * math.pi
         self.refl_mass = self.vol_refl * self.reflprops['rho']
         # calculate Pressure Vessel mass
@@ -429,7 +432,6 @@ class Flow:
         self.PV_mass = self.vol_PV * self.pv_props['rho']
         self.mass = self.fuel_mass + self.cool_mass + self.refl_mass +\
                     self.clad_mass + self.PV_mass
-        self.core_mass = self.fuel_mass + self.cool_mass + self.clad_mass
     
     def constrain_radius(self):
         """Constrain the core radius based on criticality requirements.
@@ -438,27 +440,11 @@ class Flow:
         --------------------
             core_r (float): critical core radius based on fuel fraction [m]
         """
-#     Critical Radius of Buried Reactor
-        coeffs = { 'UO2' : {'CO2' : (0.1322,  -0.59634),
-                            'H2O' : (0.1367,  -0.45801)
-                           },
 
-                   'UW'  : {'CO2' : (0.1687,  -0.57327),
-                            'H2O' : (0.1681,  -0.51622)
-                           }
+        # Critical Radius of Buried Reactor
+        coeffs = {'UW'  : {'CO2' : (-85.8968, 196.3772, -161.3156, 62.3759)},
+                  'UO2' : {'CO2' : ( -63.9328861, 147.44434591, -122.88976054, 48.38235672)}
                  }
-#     Critical Radius of Reactor in Space  
-#       coeffs = { 'UO2' : {'CO2' : (0.1631,  -0.64517),
-#                           'H2O' : (0.1692,  -0.49551)
-#                          },
 
-#                  'UW'  : {'CO2' : (0.1968,  -0.58142),
-#                           'H2O' : (0.2024,  -0.49903)
-#                          }
-#                }
-        
-        self.core_r = coeffs[self.fuel][self.coolant][0] *\
-                      math.pow(self.fuel_frac, 
-                               coeffs[self.fuel][self.coolant][1])
-
-
+        self.core_r = np.polyval(coeffs[self.fuel][self.coolant],
+                                 self.fuel_frac) / 100
