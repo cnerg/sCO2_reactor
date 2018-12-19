@@ -90,8 +90,8 @@ def fuel_frac(config, func):
         resfile = open(resname, 'a')
         config['fuel_frac'] = frac
         config['ref_mult'], mstd = refl_mult(config, func)
-        config['ref_mult'] = 0.08
-#        config['ref_mult'] = 0.211337
+#        config['ref_mult'] = 0.08
+        config['ref_mult'] = 0.211337
         # get critical radius
         crit_radius(config, func)
         

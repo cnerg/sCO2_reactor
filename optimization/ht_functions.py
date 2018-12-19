@@ -166,7 +166,7 @@ def find_n_channels(flow):
         none
 
     """
-    res = minimize_scalar(_calc_n_channels_error, bounds=(0.3, 1), args=(flow),
+    res = minimize_scalar(_calc_n_channels_error, bounds=(0.2, 1), args=(flow),
                           method='Bounded', options={'xatol': 1e-10})
 
 class Flow:
