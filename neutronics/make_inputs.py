@@ -73,7 +73,7 @@ def write_inp(rxtr):
     print(rxtr.fuel_frac, rxtr.core_r, input.tot_mass)
 
 
-SSnear = gen_reactor('UW', 'CO2', 1.678e5, 1.2722, (793.8,900),
+SSnear = gen_reactor('UO2', 'CO2', 1.678e5, 1.2722, (793.8,900),
     (1.7906e7,1.7423e7), 3)
 write_inp(SSnear)
 print(SSnear.gen_Q)

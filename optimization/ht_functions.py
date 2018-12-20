@@ -448,7 +448,7 @@ class Flow:
             f.append(float(line.split(',')[0]))
             r.append(float(line.split(',')[1]) / 100)
 
-        self.poly = np.polyfit(f, r, order)
+        self.poly = np.polyfit(f, r, 7)
 
     def constrain_radius(self):
         """Constrain the core radius based on criticality requirements.
