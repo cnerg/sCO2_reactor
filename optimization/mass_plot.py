@@ -48,7 +48,7 @@ T = (900,1100)
 P = {'CO2' : (1.79e7, 1.73e7), 
      'H2O' : (4.84e7, 4.77e7)
     }
-m_dot = 1
+m_dot = 0.8
 power = 150000
 
 def lin_func(xdata, coeffs):

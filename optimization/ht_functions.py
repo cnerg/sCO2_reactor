@@ -421,10 +421,13 @@ class Flow:
         self.r_ref = self.refl_m[self.fuel][self.coolant]*self.core_r
         
         self.PV_thickness()
+        
         # calculate volumes
         self.vol_core = self.vol_fuel + self.vol_cool + self.vol_clad
         self.vol_refl = (self.r_ref**2 * 2*self.r_ref * math.pi) - self.vol_core
-        self.vol_PV = (self.r_PV**2 - self.r_ref**2) * 2*self.r_PV * math.pi
+        self.vol_PV = self.r_PV**2 * 2*self.r_PV * math.pi -\
+                      self.vol_refl - self.vol_core
+        
         # calculate masses
         self.fuel_mass = self.vol_fuel * self.fuelprops['rho_fuel']
         self.cool_mass = self.vol_cool * self.fps.rho
@@ -436,7 +439,7 @@ class Flow:
                     self.clad_mass + self.PV_mass
     
     def neutronics(self, order):
-        """
+        """Load the data and generate a polyfit for critical radius.
         """
         fp = open('../data/{0}_{1}_core_radii.txt'.format(self.fuel,
                                                           self.coolant), 'r')
@@ -447,7 +450,7 @@ class Flow:
         for line in lines[1:]:
             f.append(float(line.split(',')[0]))
             r.append(float(line.split(',')[1]) / 100)
-
+        # fit a 7th order polynomial to the data
         self.poly = np.polyfit(f, r, 7)
 
     def constrain_radius(self):
@@ -458,9 +461,4 @@ class Flow:
             core_r (float): critical core radius based on fuel fraction [m]
         """
 
-        # Critical Radius of Buried Reactor
-        coeffs = {'UW'  : {'CO2' : (-85.8968, 196.3772, -161.3156, 62.3759)},
-                  'UO2' : {'CO2' : ( -63.9328861, 147.44434591, -122.88976054, 48.38235672)}
-                 }
-        
         self.core_r = np.polyval(self.poly, self.fuel_frac)
