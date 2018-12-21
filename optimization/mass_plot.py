@@ -44,12 +44,13 @@ labels = {'mass'        : 'Reactor Mass [kg]',
           'T'           : 'Reactor Inlet Temperature [K]'
          }
 
-T = (900,1100)
-P = {'CO2' : (1.79e7, 1.73e7), 
+T = (793.8, 900)
+P = {'CO2' : (1.7906e7, 1.7423e7), 
      'H2O' : (4.84e7, 4.77e7)
     }
-m_dot = 0.8
+m_dot = 1.2722
 power = 150000
+
 
 def lin_func(xdata, coeffs):
     
@@ -61,7 +62,7 @@ def power_dependence(fuel, coolant):
     x = []
     y = []
 
-    powers = np.linspace(90000, 200000, 10)
+    powers = np.linspace(0.1, 200000, 500)
     data = np.zeros(len(powers), dtype={'names' : list(labels.keys()),
                                         'formats' : ['f8']*len(labels)})
     # get coolant properties
@@ -173,9 +174,11 @@ def plot_results_text(results, ind, dep):
         res = results[rxtr]
         ax.plot(res[ind], res[dep], line_formats[rxtr], label=rxtr)
     
-    str = "Fuel : UO2\nCool: CO2\nT: 1000 [K]\nP: 1.76E+07 [Pa]\nmass flow: 1 [kg/s]"
+    T_ave = np.average(T)
+    P_ave = np.average(P['CO2'])
+    str = "Fuel : UO2\nCool: CO2\nT: {0:.1f} [K]\nP: {1:.3e} [Pa]\nmass flow: {2:.3f} [kg/s]".format(T_ave, P_ave, m_dot)
 
-    plt.text(100, 130, str)
+    plt.text(80, 120, str)
     title1 = " ".join(labels[dep].split()[:-1])
     title2 = " ".join(labels[ind].split()[:-1])
     plt.title('{0} vs. {1}'.format(title1, title2))
@@ -261,8 +264,8 @@ plot_results(temp_data, 'T', 'mass')
 #plot_results(data, 'gen_Q', 'Q_therm')
 plot_results_text(data, 'gen_Q', 'mass')
 #plot_results(data, 'gen_Q', 'Re')
-#plot_results(data, 'gen_Q', 'fuel_frac')
-#plot_results(data, 'gen_Q', 'core_r')
+plot_results(data, 'gen_Q', 'fuel_frac')
+plot_results(data, 'gen_Q', 'core_r')
 #plot_results(data, 'gen_Q', 'A_flow')
 #plot_results(data, 'gen_Q', 'h_bar')
 #plot_results(data, 'gen_Q', 'LD')
