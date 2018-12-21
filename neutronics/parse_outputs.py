@@ -13,7 +13,8 @@ import neutronic_sweeps as ns
 import pandas
 from mcnp_inputs import HomogeneousInput
 
-names = ns.dimensions + ['keff', 'stdv', 'r_mass', 'c_mass', 'p_mass', 'mass']
+names =  ['core_r', 'fuel_frac', 'ref_mult', 'keff', 
+          'stdv', 'r_mass', 'c_mass', 'p_mass', 'mass']
 types = ['f8']*len(names)
 
 def load_outputs(data_dir):
