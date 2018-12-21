@@ -62,7 +62,7 @@ def power_dependence(fuel, coolant):
     x = []
     y = []
 
-    powers = np.linspace(0.1, 200000, 500)
+    powers = np.linspace(25000, 200000, 500)
     data = np.zeros(len(powers), dtype={'names' : list(labels.keys()),
                                         'formats' : ['f8']*len(labels)})
     # get coolant properties
@@ -73,6 +73,7 @@ def power_dependence(fuel, coolant):
     
     for idx, Q in enumerate(powers):
         rxtr.Q_therm = Q
+        rxtr.fps.m_dot = Q / (rxtr.fps.Cp * (T[1] - T[0]))
         # perform 1D calculation
         oned_flow_modeling(rxtr)
         rxtr.Q_therm /= 1e3
@@ -81,7 +82,6 @@ def power_dependence(fuel, coolant):
         for key in labels.keys():
             data[idx][key] = rxtr.__dict__[key]
     
-        print(rxtr.fuel_frac)
     return data
 
 def m_dot_dependence(fuel, coolant):
@@ -90,7 +90,7 @@ def m_dot_dependence(fuel, coolant):
     x = []
     y = []
 
-    mdots = np.linspace(2, 100, 100)
+    mdots = np.linspace(2, 150, 100)
     data = np.zeros(len(mdots), dtype={'names' : list(labels.keys()),
                                         'formats' : ['f8']*len(labels)})
     
@@ -176,9 +176,9 @@ def plot_results_text(results, ind, dep):
     
     T_ave = np.average(T)
     P_ave = np.average(P['CO2'])
-    str = "Fuel : UO2\nCool: CO2\nT: {0:.1f} [K]\nP: {1:.3e} [Pa]\nmass flow: {2:.3f} [kg/s]".format(T_ave, P_ave, m_dot)
+    str = "Fuel : UO2\nCool: CO2\nT: {0:.1f} [K]\nP: {1:.3e} [Pa]\n".format(T_ave, P_ave)
 
-    plt.text(80, 120, str)
+    plt.text(150, 105, str)
     title1 = " ".join(labels[dep].split()[:-1])
     title2 = " ".join(labels[ind].split()[:-1])
     plt.title('{0} vs. {1}'.format(title1, title2))
@@ -238,7 +238,6 @@ def gen_data():
     temp_results = {}
 
     for config in rxtr_configs:
-        print(config)
         fuel = config.split('-')[0]
         cool = config.split('-')[1]
         
@@ -266,6 +265,7 @@ plot_results_text(data, 'gen_Q', 'mass')
 #plot_results(data, 'gen_Q', 'Re')
 plot_results(data, 'gen_Q', 'fuel_frac')
 plot_results(data, 'gen_Q', 'core_r')
+plot_results(data, 'fuel_frac', 'core_r')
 #plot_results(data, 'gen_Q', 'A_flow')
 #plot_results(data, 'gen_Q', 'h_bar')
 #plot_results(data, 'gen_Q', 'LD')

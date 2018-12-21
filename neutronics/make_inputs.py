@@ -74,18 +74,8 @@ def write_inp(rxtr):
 
 
 SSnear = gen_reactor('UO2', 'CO2', 1.678e5, 1.2722, (793.8,900),
-    (1.7906e7,1.7423e7), 3)
-write_inp(SSnear)
-print(SSnear.gen_Q)
+    (1.7906e7,1.7423e7), 7)
 
-#for i in [2, 3, 4, 5, 6, 7, 8, 9]:
-#    SSnear = gen_reactor('UO2', 'CO2', 1.678e5, 1.2722, (793.8,900),
-#        (1.7906e7,1.7423e7), i)
-#    write_inp(SSnear)
-#    os.rename('./UO2-CO2.i', './UO2-CO2_{0}.i'.format(i))
-#
-#for i in [2, 3, 4, 5, 6, 7, 8, 9]:
-#    SSnear = gen_reactor('UW', 'CO2', 1.678e5, 1.2722, (793.8,900),
-#        (1.7906e7,1.7423e7), i)
-#    write_inp(SSnear)
-#    os.rename('./UN-CO2.i', './UN-CO2_{0}.i'.format(i))
+write_inp(SSnear)
+for item in sorted(SSnear.__dict__.keys()):
+    print(item, SSnear.__dict__[item])
