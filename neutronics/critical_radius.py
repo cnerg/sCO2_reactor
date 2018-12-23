@@ -73,6 +73,11 @@ def fuel_frac(config, func):
     """Determine the optimal reflector thickness for a given reactor
     configuration.
     """
+    
+    const_mults = {'UO2' : {'CO2' : 0.08, 'H2O' : 0.001},
+                   'UN'  : {'CO2' : 0.211337, 'H2O' : 0.0221602}
+                  }
+
     # prepare the results file
     resname = '{0}_{1}_results.txt'.format(config['cool'], config['fuel'])
     resfile = open(resname, '+w')
@@ -90,8 +95,7 @@ def fuel_frac(config, func):
         resfile = open(resname, 'a')
         config['fuel_frac'] = frac
         config['ref_mult'], mstd = refl_mult(config, func)
-#        config['ref_mult'] = 0.08
-#        config['ref_mult'] = 0.211337
+        config['ref_mult'] = const_mults[config['fuel']][config['cool']]
         # get critical radius
         crit_radius(config, func)
         
@@ -110,7 +114,11 @@ def fuel_frac(config, func):
     poly = np.polyfit(results['frac'], results['radius'], 7)
     fit_fracs = np.linspace(fracs[0], fracs[-1], 1000)
     fit_radii = np.polyval(poly, fit_fracs)
-    print(poly) 
+    print(poly)
+
+    for idx, coef in enumerate(reversed(poly)):
+        print('    A$_{0}$  &  {1:.3f}\\\\'.format(idx, coef))
+
     print('Average Multiplier: {0}'.format(np.average(results['mult'])))
     # plot mass mult curves
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.0),ncol=5,
@@ -188,15 +196,15 @@ if __name__ == '__main__':
     args = sys.argv[1:]
     matr = None
     print(args)
-    if len(args) == 5:
-        matr = args[4]
-    config = {'fuel' : args[1],
+    if len(args) == 4:
+        matr = args[3]
+    config = {'fuel' : args[0],
               'matr' : matr,
-              'cool' : args[2],
-              'clad' : args[3],
+              'cool' : args[1],
+              'clad' : args[2],
              }
-    
-    data = po.load_from_csv(args[0])
+    datapath = '../../results/{0}_{1}_train.csv'.format(args[0], args[1])
+    data = po.load_from_csv(datapath)
     fn = po.interpolate_grid(data)
     print(fn.grid)
     fuel_frac(config, fn)
