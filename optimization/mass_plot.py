@@ -62,7 +62,7 @@ def power_dependence(fuel, coolant):
     x = []
     y = []
 
-    powers = np.linspace(25000, 200000, 500)
+    powers = np.linspace(100e3, 200e3, 500)
     data = np.zeros(len(powers), dtype={'names' : list(labels.keys()),
                                         'formats' : ['f8']*len(labels)})
     # get coolant properties
@@ -90,7 +90,7 @@ def m_dot_dependence(fuel, coolant):
     x = []
     y = []
 
-    mdots = np.linspace(2, 150, 100)
+    mdots = np.linspace(100, 200, 100)
     data = np.zeros(len(mdots), dtype={'names' : list(labels.keys()),
                                         'formats' : ['f8']*len(labels)})
     
@@ -148,7 +148,7 @@ def plot_results(results, ind, dep):
 
     for rxtr in sorted(results):
         res = results[rxtr]
-        ax.plot(res[ind], res[dep], line_formats[rxtr], label=rxtr)
+        ax.scatter(res[ind], res[dep])# line_formats[rxtr], label=rxtr)
     
     plt.legend()
     title1 = " ".join(labels[dep].split()[:-1])
@@ -169,21 +169,24 @@ def plot_results_text(results, ind, dep):
                     'UW-H2O'  : 'b-'}
 
     fig, ax = plt.subplots()
-
+    y_upper = 0
     for rxtr in sorted(results):
         res = results[rxtr]
         ax.plot(res[ind], res[dep], line_formats[rxtr], label=rxtr)
-    
+        if max(res['mass']) > y_upper:
+            y_upper = max(res['mass'])
+
     T_ave = np.average(T)
     P_ave = np.average(P['CO2'])
     str = "Fuel : UO2\nCool: CO2\nT: {0:.1f} [K]\nP: {1:.3e} [Pa]\n".format(T_ave, P_ave)
 
-    plt.text(150, 105, str)
+    plt.text(150, 80, str)
     title1 = " ".join(labels[dep].split()[:-1])
     title2 = " ".join(labels[ind].split()[:-1])
     plt.title('{0} vs. {1}'.format(title1, title2))
     plt.xlabel(labels[ind])
     plt.ylabel(labels[dep])
+    plt.ylim((0,y_upper*1.1))
     plt.savefig('{0}_vs_{1}.png'.format(dep, ind), dpi=700) 
 
 def stacked_area_plot(results):
@@ -260,7 +263,7 @@ plot_results(temp_data, 'T', 'mass')
 #plot_results(mdot_data, 'm_dot', 'mass')
 #plot_results(mdot_data, 'm_dot', 'gen_Q')
 #plot_results(data, 'gen_Q', 'dp')
-#plot_results(data, 'gen_Q', 'Q_therm')
+plot_results(data, 'gen_Q', 'Q_therm')
 plot_results_text(data, 'gen_Q', 'mass')
 #plot_results(data, 'gen_Q', 'Re')
 plot_results(data, 'gen_Q', 'fuel_frac')

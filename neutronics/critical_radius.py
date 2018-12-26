@@ -172,7 +172,7 @@ def refl_mult(config, func):
         
         data['mass'].append(calc_rxtr_mass(config))
         data['mult'].append(mult)
-    
+
     # normalize data to 1
     data['mass'] = [x / sum(data['mass']) for x in data['mass']]
     

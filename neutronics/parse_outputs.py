@@ -29,7 +29,7 @@ def load_outputs(data_dir):
     
     return file_strings
 
-def parse_keff(lines):
+def parse_keff(lines, filename):
     """Parse the output for keff value.
     """
 
@@ -37,6 +37,7 @@ def parse_keff(lines):
     for idx, line in enumerate(lines):
         if 'final result' in line:
             res_idx.append(idx)
+
     keff = float(lines[res_idx[-1]].split()[2])
     stdv = float(lines[res_idx[-1]].split()[3])
 
@@ -91,7 +92,7 @@ def save_store_data(data_dir, name='crit_results.csv'):
         fp.close()
         parse_header_string(string, data[idx])
         calc_mass(data[idx])
-        data[idx]['keff'], data[idx]['stdv'] = parse_keff(string)
+        data[idx]['keff'], data[idx]['stdv'] = parse_keff(string, file)
 
     zip_folder.close()
     

@@ -152,7 +152,7 @@ if __name__=='__main__':
     if args[0] == 'test':
         cube = gen_hypercube(samples, dims)
         data = fill_data_array(samples, params, cube)
-    if args[0] == 'interp':
+    if args[0] == 'train':
         data = grid_sampling(params)
     write_inputs(data, config, params)
     # cleanup
