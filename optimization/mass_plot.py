@@ -187,6 +187,7 @@ def plot_results_text(results, ind, dep):
     plt.xlabel(labels[ind])
     plt.ylabel(labels[dep])
     plt.ylim((0,y_upper*1.1))
+    plt.xlim((0,210))
     plt.savefig('{0}_vs_{1}.png'.format(dep, ind), dpi=700) 
 
 def stacked_area_plot(results):

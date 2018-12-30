@@ -73,8 +73,8 @@ def write_inp(rxtr):
     print(rxtr.fuel_frac, rxtr.core_r, input.tot_mass)
 
 
-SSnear = gen_reactor('UO2', 'CO2', 1.678e5, 1.2722, (793.8,900),
-    (1.7906e7,1.7423e7), 7)
+SSnear = gen_reactor('UO2', 'CO2', 1.6629e5, 1.2617, (793.88,900),
+    (1.7906e7,1.742e7), 7)
 
 write_inp(SSnear)
 for item in sorted(SSnear.__dict__.keys()):
