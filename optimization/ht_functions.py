@@ -166,7 +166,9 @@ def find_n_channels(flow):
         none
 
     """
-    res = minimize_scalar(_calc_n_channels_error, bounds=(0.2, 1), args=(flow),
+    lim = {'UW' : (0.85, 1), 'UO2' : (0.2, 1)}
+    res = minimize_scalar(_calc_n_channels_error, bounds=lim[flow.fuel], 
+                          args=(flow),
                           method='Bounded', options={'xatol': 1e-10})
 
 class Flow:
@@ -415,8 +417,8 @@ class Flow:
             Vol_fuel: total fuel volume [m^3]
             mass: total fuel mass[kg]
         """
-        self.refl_m = {'UW'  : {'CO2' : 1.211337},
-                       'UO2' : {'CO2' : 1.08}
+        self.refl_m = {'UW'  : {'CO2' : 1.211337, 'H2O' : 0.02216},
+                       'UO2' : {'CO2' : 1.08, 'H2O' : 1.001}
                       }
         self.r_ref = self.refl_m[self.fuel][self.coolant]*self.core_r
         
