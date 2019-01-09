@@ -172,7 +172,7 @@ def plot_results_text(results, ind, dep):
     y_upper = 0
     for rxtr in sorted(results):
         res = results[rxtr]
-        ax.plot(res[ind], res[dep], 'r--', label=rxtr)
+        ax.plot(res[ind], res[dep], line_formats[rxtr], label=rxtr)
         if max(res['mass']) > y_upper:
             y_upper = max(res['mass'])
     
@@ -183,8 +183,8 @@ def plot_results_text(results, ind, dep):
     T_ave = np.average(T[cool])
     P_ave = np.average(P[cool])
     str = "Fuel : {0}\nCool: {1}\nT: {2:.1f} [K]\nP: {3:.3e} [Pa]\n".format(fuel, cool, T_ave, P_ave)
-
-    plt.text(170, 50, str)
+    ax.legend()
+#    plt.text(170, 50, str)
     title1 = " ".join(labels[dep].split()[:-1])
     title2 = " ".join(labels[ind].split()[:-1])
     plt.title('{0} vs. {1}'.format(title1, title2))
@@ -196,7 +196,7 @@ def plot_results_text(results, ind, dep):
 def gen_data():
     """Get data for all 4 reactor configurations
     """
-    rxtr_configs = ['UO2-CO2']
+    rxtr_configs = ['UO2-CO2', 'UW-CO2', 'UO2-H2O', 'UW-H2O']
     power_results = {}
     m_dot_results = {}
     temp_results = {}
