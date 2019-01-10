@@ -173,7 +173,7 @@ def plot_results_temp(results, ind, dep):
 
     for temp in sorted(results):
         res = results[temp]
-        ax.plot(res[ind], res[dep], label=np.average((temp, 1100)))
+        ax.plot(res[ind], res[dep], label=int(np.average((temp, 1100))))
 
         if max(res['mass']) > y_upper:
             y_upper = max(res['mass'])
@@ -208,7 +208,7 @@ def gen_data():
 def gen_data_temp():
     """Get data for all 4 reactor configurations
     """
-    rxtr_configs = [750, 800, 850, 900, 1000, 1100]
+    rxtr_configs = [600, 700, 800, 900, 1000, 1100]
     power_results = {}
     m_dot_results = {}
     temp_results = {}
