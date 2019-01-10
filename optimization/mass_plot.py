@@ -57,7 +57,7 @@ def lin_func(xdata, coeffs):
     
     return np.add(np.multiply(coeffs[0], xdata), coeffs[1])
 
-def power_dependence(fuel, coolant):
+def power_dependence(fuel, coolant, temp=None):
     """Calculate reactor mass as function of power
     """
     x = []
@@ -66,8 +66,14 @@ def power_dependence(fuel, coolant):
     powers = np.linspace(100e3, 200e3, 500)
     data = np.zeros(len(powers), dtype={'names' : list(labels.keys()),
                                         'formats' : ['f8']*len(labels)})
-    # get coolant properties
-    flow_props = pp.FlowProperties(coolant, m_dot, T[coolant], P[coolant])
+    if temp:
+        T_cool = (temp, T[coolant][1])
+        # get coolant properties
+        flow_props = pp.FlowProperties(coolant, m_dot, T_cool, P[coolant])
+    else:
+        # get coolant properties
+        flow_props = pp.FlowProperties(coolant, m_dot, T[coolant], P[coolant])
+    
     # initialize reactor model
     rxtr = Flow(0.0025, 0.00031, 1, 1, fuel, coolant, 
                 'Inconel-718', 'Carbon', flow_props)
@@ -158,39 +164,28 @@ def plot_results(results, ind, dep):
     plt.ylabel(labels[dep])
     plt.savefig('{0}_vs_{1}.png'.format(dep, ind), dpi=700) 
 
-def plot_results_text(results, ind, dep):
+def plot_results_temp(results, ind, dep):
     """Plot mass results as function of power
     """
 
-
-    line_formats = {'UO2-CO2' : 'r--',
-                    'UO2-H2O' : 'r-',
-                    'UW-CO2'  : 'b--',
-                    'UW-H2O'  : 'b-'}
-
     fig, ax = plt.subplots()
     y_upper = 0
-    for rxtr in sorted(results):
-        res = results[rxtr]
-        ax.plot(res[ind], res[dep], line_formats[rxtr], label=rxtr)
+
+    for temp in sorted(results):
+        res = results[temp]
+        ax.plot(res[ind], res[dep], label=np.average((temp, 1100)))
+
         if max(res['mass']) > y_upper:
             y_upper = max(res['mass'])
     
-    fuel = rxtr.split('-')[0]
-    if fuel == 'UW':
-        fuel = 'UN-CERMET'
-    cool = rxtr.split('-')[1]
-    T_ave = np.average(T[cool])
-    P_ave = np.average(P[cool])
-    str = "Fuel : {0}\nCool: {1}\nT: {2:.1f} [K]\nP: {3:.3e} [Pa]\n".format(fuel, cool, T_ave, P_ave)
-    ax.legend()
-#    plt.text(170, 50, str)
+    ax.legend(title='Cool Temp [K]')
+
     title1 = " ".join(labels[dep].split()[:-1])
     title2 = " ".join(labels[ind].split()[:-1])
     plt.title('{0} vs. {1}'.format(title1, title2))
     plt.xlabel(labels[ind])
     plt.ylabel(labels[dep])
-    plt.ylim(0, 275)
+    plt.ylim(100, 150)
     plt.savefig('{0}_vs_{1}.png'.format(dep, ind), dpi=700) 
 
 def gen_data():
@@ -204,11 +199,25 @@ def gen_data():
     for config in rxtr_configs:
         fuel = config.split('-')[0]
         cool = config.split('-')[1]
-        
+                
 
         power_results[config] = power_dependence(fuel, cool)
 
     return power_results#, m_dot_results, temp_results
+
+def gen_data_temp():
+    """Get data for all 4 reactor configurations
+    """
+    rxtr_configs = [750, 800, 850, 900, 1000, 1100]
+    power_results = {}
+    m_dot_results = {}
+    temp_results = {}
+
+    for temp in rxtr_configs:
+
+        power_results[temp] = power_dependence('UO2', 'CO2', temp)
+
+    return power_results
 
 def fit_power_curve(power, mass):
     """Get curve fit for power mass relationship.
@@ -218,13 +227,13 @@ def fit_power_curve(power, mass):
     return popt, pcov
 
 #data, mdot_data, temp_data = gen_data()
-data = gen_data()
+data = gen_data_temp()
 #plot_results(temp_data, 'T', 'mass')
 #plot_results(mdot_data, 'm_dot', 'mass')
 #plot_results(mdot_data, 'm_dot', 'gen_Q')
 #plot_results(data, 'gen_Q', 'dp')
 plot_results(data, 'Q_therm', 'gen_Q')
-plot_results_text(data, 'gen_Q', 'mass')
+plot_results_temp(data, 'gen_Q', 'mass')
 #plot_results(data, 'gen_Q', 'Re')
 plot_results(data, 'gen_Q', 'fuel_frac')
 #plot_results(data, 'gen_Q', 'core_r')
