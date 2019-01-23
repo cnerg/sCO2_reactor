@@ -215,7 +215,7 @@ def gen_data_temp():
 
     for temp in rxtr_configs:
 
-        power_results[temp] = power_dependence('UO2', 'CO2', temp)
+        power_results[temp] = power_dependence('UO2', 'H2O', temp)
 
     return power_results
 

@@ -144,15 +144,15 @@ def fuel_frac(config, func):
     plt.xlabel('Fuel Fraction [-]')
     plt.ylabel('Critical Core Radius [cm]')
     plt.legend()
-    plt.title('Critical Core Radius n=7')
+    plt.title('Critical Core Radius')
     plt.savefig('core_r.png')
     # std of mass
     fig = plt.figure()
     plt.scatter(results['frac'], results['mass_std'])
     plt.xlabel('fuel fraction [-]')
-    plt.ylabel('mass standard deviation [kg]')
-    plt.title('Standard Deviation of Total Masses')
-    plt.savefig('mass_std.png')
+    plt.ylabel('relative std [-]')
+    plt.title('Mass Standard Deviation Fraction of Total Mass')
+    plt.savefig('mass_std.png', bbox_inches='tight')
     
 def refl_mult(config, func):
     """Determine the optimal reflector thickness for a given reactor
@@ -174,7 +174,7 @@ def refl_mult(config, func):
         data['mult'].append(mult)
     
     # normalize data to 1
-    data['mass'] = [x / sum(data['mass']) for x in data['mass']]
+#    data['mass'] = [x / sum(data['mass']) for x in data['mass']]
     
     poly = np.polyfit(data['mult'], data['mass'], 2)
     fit_mults = np.linspace(data['mult'][0], data['mult'][-1], 1000)
@@ -189,7 +189,7 @@ def refl_mult(config, func):
         ax.scatter(data['mult'], data['mass'], s=6)
         ax.plot(fit_mults, fit_mass, label='{0:.2f}'.format(config['fuel_frac']))
 
-    return opt_mult, np.std(data['mass'])
+    return opt_mult, np.std(data['mass']) / np.mean(data['mass'])
 
 if __name__ == '__main__':
     

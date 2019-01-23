@@ -202,7 +202,7 @@ def test_interpolator(data, func, config):
         error.append(abs(kinterp - row['keff']) * 1e5)
     print(len(error))
     fig = plt.figure()
-    plt.hist(error)
+    plt.hist(error, ec='black')
     title = ' '.join(config.split('_'))
     plt.title('Interpolation Error: ' + title)
     plt.xlabel('Interpolated Reactivity Error [pcm]')
