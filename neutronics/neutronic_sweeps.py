@@ -43,6 +43,11 @@ parameters = {
              {'core_r'    : (10, 50, 30),         
               'fuel_frac' : (0.2, 1, 10),
               'ref_mult'  : (0.001, 0.12, 33),        
+             },
+         'UO2_NH3' : 
+             {'core_r'    : (10, 50, 7),         
+              'fuel_frac' : (0.2, 1, 7),
+              'ref_mult'  : (0.001, 0.4, 7),        
              }}
 
 dims = len(parameters)
